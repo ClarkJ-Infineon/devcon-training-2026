@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# PSOC Control CAN Command & Telemetry lab - node role select.
+#
+# Which role this build takes on is chosen by the EXTRA_CONF_FILE passed to
+# `west build` (conf/role_command.conf or conf/role_telemetry.conf), not by
+# editing this file directly.
+
+mainmenu "PSOC Control CAN Command & Telemetry Lab"
+
+choice LAB_ROLE
+	prompt "CAN lab node role"
+	default LAB_ROLE_COMMAND
+	help
+	  Board A ("Command node") reads the onboard potentiometer and
+	  transmits the resulting setpoint over CAN. Board B ("Telemetry
+	  node") receives the setpoint over CAN and mirrors it on its own
+	  LED. Both roles run from the same skeleton; only the role Kconfig
+	  fragment differs at build time.
+
+config LAB_ROLE_COMMAND
+	bool "Command node (potentiometer -> local LED + CAN TX)"
+
+config LAB_ROLE_TELEMETRY
+	bool "Telemetry node (CAN RX -> LED mirror)"
+
+endchoice
+
+source "Kconfig.zephyr"

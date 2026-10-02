@@ -1,0 +1,113 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * PSOC Control CAN Command & Telemetry lab - devicetree overlay
+ * (reference solution).
+ *
+ * Shared by both roles (Command node and Telemetry node) - the physical
+ * board is identical either way, only the application code built on top of
+ * it differs.
+ *
+ * CAN is already enabled by default in this board's base devicetree
+ * (kit_psc3m5_evk-common.dtsi enables canfd0/can1, and `zephyr,canbus` is
+ * already chosen).
+ *
+ * HOWEVER: the board's CAN screw terminals are fed by an onboard
+ * TLE9251VLEXUMA1 transceiver whose STB (standby) pin is wired to P7.6.
+ * STB has an internal pull-up, so the transceiver powers up in STANDBY -
+ * the transmitter is disabled and the node cannot acknowledge frames. The
+ * upstream board devicetree does not model the transceiver at all, so
+ * nothing releases STB and every transmission fails to get an ACK, driving
+ * the controller bus-off within ~1 ms (can_send() returns -ENETUNREACH).
+ *
+ * The node below models the transceiver so Zephyr's CAN core drives STB low
+ * on can_start() and back high on can_stop(). This is a gap in the board
+ * support package, not in this lab - see the lab guide's troubleshooting
+ * section.
+ */
+
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/gpio/gpio.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/pwm/pwm_ifx_tcpwm.h>
+
+/ {
+	zephyr,user {
+		/* Onboard potentiometer: HPPASS SAR ADC channel 12
+		 * ("CYBSP_POT" in the ModusToolbox BSP for this board).
+		 */
+		io-channels = <&adc0 12>;
+	};
+
+	aliases {
+		cmd-pwm = &pwm_cmd;
+	};
+
+	/* Onboard TLE9251VLEXUMA1 CAN transceiver. STB (standby) is on P7.6 and
+	 * is active-high: driven low = normal mode, high/floating = standby.
+	 */
+	can_phy: can-phy {
+		compatible = "can-transceiver-gpio";
+		standby-gpios = <&gpio_prt7 6 GPIO_ACTIVE_HIGH>;
+		max-bitrate = <5000000>;
+		#phy-cells = <0>;
+	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwm_cmd: pwm_cmd_led {
+			label = "Command PWM output (mikroBUS 1 / P4.0)";
+			pwms = <&pwm1_4 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+		};
+	};
+};
+
+&adc0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@c {
+		reg = <12>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,resolution = <12>;
+	};
+};
+
+&tcpwm1_4 {
+	status = "okay";
+
+	pwm1_4: pwm1_4 {
+		status = "okay";
+		clocks = <&peri0_group5_16bit_0>;
+		pinctrl-0 = <&p4_0_pwm1_4>;
+		pinctrl-names = "default";
+	};
+};
+
+&peri0_group5_16bit_0 {
+	status = "okay";
+	clock-div = <9600>;
+};
+
+&pinctrl {
+	p4_0_pwm1_4: p4_0_pwm1_4 {
+		drive-push-pull;
+	};
+};
+
+&gpio_prt4 {
+	status = "okay";
+};
+
+/* Required so the transceiver's STB pin (P7.6) can be driven. */
+&gpio_prt7 {
+	status = "okay";
+};
+
+&can1 {
+	phys = <&can_phy>;
+};

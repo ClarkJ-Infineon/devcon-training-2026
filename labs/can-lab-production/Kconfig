@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# PSOC Control CAN Command & Telemetry lab - node role select.
+#
+# Which role this build takes on is chosen by the EXTRA_CONF_FILE passed to
+# `west build` (conf/role_command.conf or conf/role_telemetry.conf), not by
+# editing this file directly.
+
+mainmenu "PSOC Control CAN Command & Telemetry Lab"
+
+choice LAB_ROLE
+	prompt "CAN lab node role"
+	default LAB_ROLE_COMMAND
+	help
+	  Board A ("Command node") reads the onboard potentiometer and
+	  transmits the resulting setpoint over CAN. Board B ("Telemetry
+	  node") receives the setpoint over CAN and mirrors it on its own
+	  LED. Both roles run from the same skeleton; only the role Kconfig
+	  fragment differs at build time.
+
+config LAB_ROLE_COMMAND
+	bool "Command node (potentiometer -> local LED + CAN TX)"
+
+config LAB_ROLE_TELEMETRY
+	bool "Telemetry node (CAN RX -> LED mirror)"
+
+endchoice
+
+config LAB_LED_TRIGMUX
+	bool "Drive the on-board LED from the TCPWM line via the PERI trigger mux"
+	depends on PWM
+	help
+	  Selects the "Option A" on-board LED drive path: instead of
+	  bit-banging LED0 from a software thread, route the real TCPWM PWM
+	  line to LED0 (P8.5) through the PERI trigger mux, using its
+	  PERI_TR_IO_OUTPUT43 HSIOM option.
+
+	  Set this with -DLED_TRIGMUX=y on the west build command line rather
+	  than editing a .conf file by hand - the application's CMakeLists.txt
+	  then also applies boards/led_trigmux.overlay, which is required for
+	  the pin-mux half of the route.
+
+	  This path has not yet been validated on hardware. Leave it disabled
+	  (the default) to use the known-good soft-PWM path.
+
+source "Kconfig.zephyr"

@@ -1,0 +1,24 @@
+From: DevCon Training <devcon@example.invalid>
+Subject: [PATCH] lvgl: include software blend private header before the Helium backends
+
+The Helium and Arm2D headers reference lv_draw_sw_blend_dsc_t, which is
+declared in lv_draw_sw_blend_private.h. Alphabetical include order leaves
+the type incomplete.
+
+---
+diff --git a/src/lvgl_private.h b/src/lvgl_private.h
+index ab60c17c2..5a24fb4e1 100644
+--- a/src/lvgl_private.h
++++ b/src/lvgl_private.h
+@@ -66,10 +66,10 @@
+ #include "draw/sdl/lv_draw_sdl.h"
+ #include "draw/sw/arm2d/lv_draw_sw_arm2d.h"
+ #include "draw/sw/arm2d/lv_draw_sw_helium.h"
++#include "draw/sw/blend/lv_draw_sw_blend_private.h"
+ #include "draw/sw/blend/arm2d/lv_blend_arm2d.h"
+ #include "draw/sw/blend/helium/lv_blend_helium.h"
+ #include "draw/sw/blend/lv_draw_sw_blend.h"
+-#include "draw/sw/blend/lv_draw_sw_blend_private.h"
+ #include "draw/sw/blend/lv_draw_sw_blend_to_a8.h"
+ #include "draw/sw/blend/lv_draw_sw_blend_to_al88.h"
+ #include "draw/sw/blend/lv_draw_sw_blend_to_argb8888.h"

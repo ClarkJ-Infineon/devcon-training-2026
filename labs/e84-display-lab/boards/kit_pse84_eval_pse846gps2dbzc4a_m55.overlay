@@ -1,0 +1,126 @@
+/*
+ * Copyright (c) 2026 Infineon Technologies AG,
+ * or an affiliate of Infineon Technologies AG.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * DevCon 2026 training branch: minimal E84 EVK display smoke-test overlay.
+ * Wires the standard-issue Waveshare 4.3" DSI panel (800x480 active /
+ * 832x480 total timing) via the infineon_dc display controller.
+ *
+ * I2C0 (scb0) is already enabled with clocks/pinctrl in
+ * kit_pse84_eval_common.dtsi - only the panel child node is added here.
+ *
+ * Timing/wiring values confirmed against a known-working deployment of this
+ * same driver + panel combination on real kit_pse84_eval/.../m55 hardware
+ * (Infineon internal reference, GPU/vg_lite/audio/touch/video bits omitted -
+ * out of scope for this training branch's display smoke test).
+ */
+
+#include <zephyr/dt-bindings/display/panel.h>
+#include <zephyr/dt-bindings/clock/ifx_clock_source_common.h>
+#include <zephyr/dt-bindings/memory-attr/memory-attr-arm.h>
+
+/*
+ * MIPI DSI PHY reference clock.
+ *
+ * clk_hf12 is not a peripheral bus clock - no IP in the PDL's MMIO table
+ * claims it (GFXSS itself runs from CLK_HF1, which the board already
+ * drives at the 400 MHz that display_infineon_dc.c's hardcoded
+ * GFXSS_config.clockHz expects). It is the DSI PHY's PLL reference, and
+ * like most DSI PHYs this one needs a reference in the ~25 MHz range.
+ *
+ * Both mainline and Infineon's downstream kit_pse84_eval_m33.dts leave
+ * clk_hf12 on CLKPATH4, which has no DPLL attached and so falls back to
+ * the 50 MHz IMO - too fast for the PHY to lock. Measured on hardware
+ * with Cy_SysClk_ClkHfGetFrequency(). The failure is completely silent:
+ * the display controller still raises frame-complete interrupts, panel
+ * I2C still works, every init call still returns 0, and the only visible
+ * symptom is that the panel's backlight never turns on (this panel gates
+ * its backlight on locking to a valid video stream).
+ *
+ * CLKPATH3 divided by 2 gives 25 MHz. This matches the known-working
+ * configuration used for the PSOC Edge graphics benchmarking work on this
+ * same board and panel, which carried the identical app-level override.
+ */
+&clk_hf12 {
+	status = "okay";
+	source-path = <IFX_CLK_HF_IN_CLKPATH3>;
+	clock-div = <IFX_CLK_HF_DIVIDE_BY_2>;
+};
+
+/ {
+	chosen {
+		zephyr,display = &display_controller;
+	};
+
+	soc {
+		/*
+		 * display_infineon_dc.c hard-codes a reference to a DT
+		 * nodelabel literally named "gfx_mem" (GFX_BUF_ADDR_BASE =
+		 * DT_REG_ADDR(DT_NODELABEL(gfx_mem))) for its frame buffer.
+		 * Mainline's kit_pse84_eval board files never carried this
+		 * node over from Infineon's downstream fork (only m55_data,
+		 * 256 KB at 0x26100000, is reserved there) - add it here.
+		 * SOCMEM is 0x26000000..0x26500000 (5 MB); this carves out
+		 * 2 MB starting right after m55_data, well clear of the 5 MB
+		 * bound. No GPU/vg_lite in this smoke test, so the whole
+		 * region is available to the DC's plain framebuffer.
+		 */
+		gfx_mem: memory@26140000 {
+			compatible = "zephyr,memory-region", "mmio-sram";
+			zephyr,memory-region = "GFX_MEMORY";
+			reg = <0x26140000 DT_SIZE_M(2)>;
+
+			/*
+			 * The display controller DMAs the frame buffer
+			 * straight out of SOCMEM while the CM55 renders into
+			 * it through its D-cache, so this region has to be
+			 * mapped non-cacheable or the DC scans out whatever
+			 * stale contents SOCMEM happens to hold - the dirty
+			 * cache lines may never be written back. The symptom
+			 * is garbled/torn output with an otherwise perfectly
+			 * healthy pipeline (DC interrupts firing, every flush
+			 * returning success).
+			 *
+			 * Infineon's downstream fork solves this with a
+			 * bespoke ".cy_gpu_buf" non-cacheable linker section,
+			 * which mainline has no equivalent of. The portable
+			 * way is the standard memory-attr binding.
+			 */
+			zephyr,memory-attr = <DT_MEM_ARM(ATTR_MPU_RAM_NOCACHE)>;
+		};
+	};
+};
+
+&i2c0 {
+	waveshare_panel: waveshare_panel@45 {
+		compatible = "waveshare,4p3";
+		reg = <0x45>;
+		status = "okay";
+		pixel-format = <PANEL_PIXEL_FORMAT_RGB_888>;
+		height = <480>;
+		width = <832>;
+	};
+};
+
+&display_controller {
+	status = "okay";
+
+	height = <480>;
+	width = <832>;
+
+	pixel-clock-khz = <33768>;
+	hsync-width = <10>;
+	hfp = <210>;
+	hbp = <20>;
+	vsync-width = <5>;
+	vfp = <20>;
+	vbp = <20>;
+
+	data-lanes = <1>;
+	per-lane-mbps = <810>;
+
+	input-pixel-format = <PANEL_PIXEL_FORMAT_RGB_565>;
+	panel = <&waveshare_panel>;
+};

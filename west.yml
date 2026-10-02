@@ -1,0 +1,54 @@
+# West manifest for the DevCon 2026 FAE training event.
+#
+# Bundles the lab applications (PSOC Control CAN lab, PSOC Edge E84 display
+# lab) and pins a trimmed project list against a mainline-based Zephyr
+# branch, rather than importing upstream Zephyr's full west.yml. The list
+# below contains only the modules the labs require; upstream's manifest
+# would additionally fetch every other vendor HAL, babblesim and TF-M.
+#
+# zephyr is pinned by commit SHA rather than branch name, so a given commit
+# of this manifest always resolves to one exact Zephyr tree.
+
+manifest:
+  remotes:
+    - name: clarkj-infineon
+      url-base: https://github.com/ClarkJ-Infineon
+    - name: upstream
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: clarkj-infineon
+      repo-path: zephyr
+      revision: 4b27394f8dcd79e27f6ba3857224204df75230ab
+      west-commands: scripts/west-commands.yml
+
+    - name: hal_infineon
+      remote: upstream
+      revision: 2191db4d7723737ffd3d59d01b50f7595dac2944
+      path: modules/hal/infineon
+      groups:
+        - hal
+
+    - name: cmsis
+      remote: upstream
+      revision: 512cc7e895e8491696b61f7ba8066b4a182569b8
+      path: modules/hal/cmsis
+      groups:
+        - hal
+
+    - name: cmsis_6
+      remote: upstream
+      repo-path: CMSIS_6
+      revision: 1c1840af7a7e757d6e2fec3ddb0e5ce0dfcc93c8
+      path: modules/hal/cmsis_6
+      groups:
+        - hal
+
+    - name: lvgl
+      remote: upstream
+      revision: d1fe35d350a1503db2ec7fd4dfff8e0cc26eea7e
+      path: modules/lib/gui/lvgl
+
+  self:
+    path: devcon-training-2026

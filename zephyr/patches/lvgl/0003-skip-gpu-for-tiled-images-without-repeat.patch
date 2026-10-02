@@ -1,0 +1,26 @@
+From: DevCon Training <devcon@example.invalid>
+Subject: [PATCH] lvgl: do not claim tiled image tasks when the GPU lacks pattern repeat
+
+Tiled images are drawn with VG_LITE_PATTERN_REPEAT. On GPUs that do not
+implement repeat/reflect the blit is rejected and every tiled frame falls
+back after a failed submission. Decline the task during evaluation so the
+software renderer takes it directly.
+
+---
+diff --git a/src/draw/vg_lite/lv_draw_vg_lite.c b/src/draw/vg_lite/lv_draw_vg_lite.c
+index 1cf567589..031e5c49b 100644
+--- a/src/draw/vg_lite/lv_draw_vg_lite.c
++++ b/src/draw/vg_lite/lv_draw_vg_lite.c
+@@ -94,6 +94,12 @@ void lv_draw_vg_lite_deinit(void)
+ 
+ static bool check_image_is_supported(const lv_draw_image_dsc_t * dsc)
+ {
++    /* Tiled images are drawn as a repeat pattern. GPUs without repeat/reflect
++     * support reject the blit, so leave those tasks to the software renderer. */
++    if(dsc->tile && !vg_lite_query_feature(gcFEATURE_BIT_VG_IM_REPEAT_REFLECT)) {
++        return false;
++    }
++
+     return lv_vg_lite_is_src_cf_supported(dsc->header.cf);
+ }
+ 

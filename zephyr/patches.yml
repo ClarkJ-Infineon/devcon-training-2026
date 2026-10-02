@@ -1,0 +1,28 @@
+patches:
+  - path: lvgl/0001-guard-c-only-includes-from-assembly.patch
+    sha256sum: d51c270a847c8462899278777536dc3d9a779cdc31d162953614fde1555770ec
+    module: modules/lib/gui/lvgl
+    author: Clark Jarvis
+    email: Clark.Jarvis@infineon.com
+    date: 2026-10-02
+    upstreamable: true
+    comments: >
+      Zephyr's lv_conf.h includes C headers. The Helium assembly sources include lvgl_public.h for its macros and cannot parse them.
+  - path: lvgl/0002-include-sw-blend-private-before-helium.patch
+    sha256sum: ea4712718272168c71cf72a85101ae11993a671291a4ff5a951d5d03af6972ea
+    module: modules/lib/gui/lvgl
+    author: Clark Jarvis
+    email: Clark.Jarvis@infineon.com
+    date: 2026-10-02
+    upstreamable: true
+    comments: >
+      Include order leaves lv_draw_sw_blend_dsc_t incomplete for the Helium and Arm2D backends. Present through LVGL v9.6.0.
+  - path: lvgl/0003-skip-gpu-for-tiled-images-without-repeat.patch
+    sha256sum: 0c435ecb190d621133bf3174f2f10241eb87d614f2f776011991a7eeac1dd4be
+    module: modules/lib/gui/lvgl
+    author: Clark Jarvis
+    email: Clark.Jarvis@infineon.com
+    date: 2026-10-02
+    upstreamable: true
+    comments: >
+      The GCNanoUltraV on PSOC Edge E84 reports gcFEATURE_VG_IM_REPEAT_REFLECT as unavailable, so tiled image blits are rejected.
