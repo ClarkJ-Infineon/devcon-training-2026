@@ -99,10 +99,11 @@ the display lab, not only the Helium and GPU ones -- see that lab's README.
 | PSOC™ Edge E84 Display / LVGL smoke test | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-display-lab` |
 
 Each lab has its own README with build commands and board target strings.
-Flashing helper: `tools/flash-board.ps1`.
+Flash with `west flash` from the lab directory.
 
 ## Limitations
 
-- The `can-lab-cheat`, `-beginner` and `-advanced` tiers ship only a
-  `kit_psc3m5_evk.overlay` under `boards/`. On KIT_PSC3M5_CC2, use
-  `can-lab-production`.
+- On KIT_PSC3M5_CC2, flashing requires the `zephyr` revision pinned by this
+  manifest. Earlier revisions default to the `jlink` runner, which cannot
+  program the secure flash alias the image is linked at, and `west flash`
+  fails with "Writing target memory failed" after a successful erase.
