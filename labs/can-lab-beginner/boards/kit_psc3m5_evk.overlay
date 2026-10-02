@@ -92,7 +92,7 @@
 	 *
 	 *	pwm_cmd: pwm_cmd_led {
 	 *		label = "Command PWM output (mikroBUS 1 / P4.0)";
-	 *		pwms = <&pwm1_4 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+	 *		pwms = <&pwm1_4 0 PWM_USEC(1000) PWM_POLARITY_NORMAL>;
 	 *	};
 	 * };
 	 */
@@ -141,9 +141,15 @@
 	// };
 };
 
+/*
+ * 240 divides the 240 MHz peripheral clock to a 1 MHz counter, giving the
+ * 1 kHz PWM exactly 1000 brightness steps. 1 kHz is deliberate: at 50 Hz a
+ * single disturbed period lasts 20 ms, which is visible as a bright flash
+ * while the duty cycle is changing quickly.
+ */
 &peri0_group5_16bit_0 {
 	status = "okay";
-	clock-div = <9600>;
+	clock-div = <240>;
 };
 
 &pinctrl {

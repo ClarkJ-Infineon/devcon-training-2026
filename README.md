@@ -17,6 +17,20 @@ west update --narrow
 `--narrow` fetches just the pinned revision of each project rather than every
 branch and tag, and is recommended for conference WiFi.
 
+## PSOC Control boards: point west at ModusToolbox OpenOCD
+
+Both `kit_psc3m5_cc2` and `kit_psc3m5_evk` flash through the `openocd` runner,
+and the Zephyr SDK's bundled OpenOCD does not ship a PSC3 target. Set this once
+per workspace, substituting your ModusToolbox programming tools path:
+
+```
+west config build.cmake-args -- "-DOPENOCD=<progtools>/openocd/bin/openocd.exe -DOPENOCD_DEFAULT_PATH=<progtools>/openocd/scripts"
+```
+
+With that set, `west flash` works for every lab in this repository; no manual
+programming steps are needed. If it is missing, `west flash` stops before
+touching the board, so nothing is left in a half-programmed state.
+
 ## What this manifest pins
 
 Upstream Zephyr's `west.yml` places every vendor HAL (`hal_infineon`,
@@ -36,13 +50,18 @@ for upstream Zephyr's complete default manifest — a **~67% reduction**.
 
 ## Zephyr branch contents
 
-The pinned `devcon-training-2026` branch adds two things to mainline Zephyr:
+The pinned `devcon-training-2026` branch adds three things to mainline Zephyr:
 
 - The `infineon_dc` MIPI-DSI display controller driver and the Waveshare DSI
   panel drivers, required by the E84 display lab.
 - A fix to `drivers/i2c/i2c_infineon_pdl.c`, where the `continueXfer` field no
   longer exists in the pinned PDL revision. This applies to every Infineon PDL
   I2C user, not only the E84 labs.
+- A flash-runner fix for `kit_psc3m5_cc2`. On mainline this board flashes with
+  the `jlink` runner, which cannot program it: Zephyr links at the CBUS secure
+  alias `0x12000000`, while the SEGGER loader exposes a single bank at
+  `0x22000000`, so the chip erase succeeds and the program fails. The board now
+  defaults to the `openocd` runner, as `kit_psc3m5_evk` already does.
 
 ## E84 display lab requires `--sysbuild`
 

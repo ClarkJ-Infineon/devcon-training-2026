@@ -37,7 +37,7 @@
 #include <zephyr/sys/util.h>
 
 #if !DT_NODE_EXISTS(DT_ALIAS(cmd_pwm))
-#error "No 'cmd-pwm' devicetree alias. Complete Step 1 (boards/kit_psc3m5_evk.overlay, TODO 1c) before building - see the lab guide."
+#error "No 'cmd-pwm' devicetree alias. Complete Step 1 (your board's overlay in boards/, TODO 1c) before building - see the lab guide."
 #endif
 
 #if !defined(CONFIG_PWM)

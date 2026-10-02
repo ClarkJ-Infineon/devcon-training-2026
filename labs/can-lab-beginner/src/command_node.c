@@ -64,7 +64,7 @@ LOG_MODULE_REGISTER(command_node, LOG_LEVEL_INF);
 #define CAN_BITRATE      500000
 
 #if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
-#error "No ADC channel on /zephyr,user. Complete Step 1 (boards/kit_psc3m5_evk.overlay, TODO 1a/1b) before building - see the lab guide."
+#error "No ADC channel on /zephyr,user. Complete Step 1 (your board's overlay in boards/, TODO 1a/1b) before building - see the lab guide."
 #endif
 
 /* LED1 toggles on every CAN frame sent - a quick "yes, a frame just went
