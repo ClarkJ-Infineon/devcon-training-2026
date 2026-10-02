@@ -27,19 +27,31 @@ int main(void)
 	const struct device *display_dev;
 	lv_obj_t *title_label;
 	lv_obj_t *count_label;
-	char count_str[11];
+	/*
+	 * Sized for the longest string this can ever produce, not the shortest.
+	 * "Uptime: " is 8 characters, so an 11-byte buffer holds only 10 plus
+	 * the terminator and snprintf() silently truncates from 10 s onward.
+	 * Truncation is easy to miss because it eats the trailing 's' first and
+	 * only later the digits, so the counter appears to stall for longer and
+	 * longer stretches as uptime grows - at a 4-digit uptime the visible
+	 * text changes once every 100 s, which reads as a frozen display rather
+	 * than a formatting bug.
+	 */
+	char count_str[32];
 	uint32_t seconds = 0;
 	int ret;
 
 	/*
-	 * Build stamp, logged unconditionally before anything else runs.
-	 * Flagged by a sibling PSOC Edge session as essential: OpenOCD's
-	 * write_image+verify_image path (what `west flash` uses) was found to
-	 * report false success on this chip family while leaving an older
-	 * image running, and the shared Zephyr kernel build-ID banner alone
-	 * cannot distinguish "this app" from "any app built from this same
-	 * commit". This line is the one thing that can't lie about which
-	 * build is actually executing.
+	 * Per-build stamp, logged before anything else runs.
+	 *
+	 * OpenOCD's write_image + verify_image path can report success on this
+	 * chip family while leaving the previous image running, so a clean
+	 * programmer log is not evidence that a flash landed. The Zephyr
+	 * kernel build-ID banner cannot close that gap either, because it is
+	 * identical for every build of the same commit. A compile timestamp
+	 * changes on every rebuild and can be cross-checked against the ELF's
+	 * mtime, which makes it the one value that identifies the running
+	 * image. Requires a pristine build (west build -p always) to update.
 	 */
 	LOG_INF("e84-display-lab build stamp: " __DATE__ " " __TIME__);
 
@@ -58,14 +70,12 @@ int main(void)
 	lv_obj_align(count_label, LV_ALIGN_CENTER, 0, 20);
 
 	/*
-	 * Progress logging around every step that can block. ifx_dc_write()
+	 * Progress logging around each step that can block. ifx_dc_write()
 	 * ends in k_sem_take(&dc_sem, K_FOREVER) waiting on a display-
-	 * controller frame-complete interrupt, so if the GFXSS clock tree
-	 * is misconfigured the very first flush hangs here forever with no
-	 * error reported anywhere. Without these markers that failure is
-	 * indistinguishable from "rendered fine but the panel is dark",
-	 * which is exactly the ambiguity that made the first bring-up
-	 * attempt on this board so slow to diagnose.
+	 * controller frame-complete interrupt, so a misconfigured GFXSS clock
+	 * tree makes the first flush block forever without reporting an error.
+	 * These markers separate that case from one where frames are flushing
+	 * but nothing is visible on the panel.
 	 */
 	LOG_INF("first flush (expected to be discarded by the driver)");
 	lv_timer_handler();
