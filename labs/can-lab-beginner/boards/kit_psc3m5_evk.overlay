@@ -19,7 +19,7 @@
  *               signal (mikroBUS header 1 / pin P4.0).
  *
  * Reference: samples/drivers/adc/adc_dt/boards/kit_psc3m5_evk.overlay and
- * samples/basic/fade_led/boards/kit_psc3m5_evk.overlay in the Zephyr
+ * samples/basic/fade_led/boards/kit_psc3m5_evk.overlay in the ifx-zephyr
  * tree show the same nodes fully enabled, if you get stuck.
  *
  * Docs: what an overlay is and why it exists
@@ -142,13 +142,19 @@
 };
 
 /*
- * 240 divides the 240 MHz peripheral clock to a 1 MHz counter, giving the
- * 1 kHz PWM exactly 1000 brightness steps. 1 kHz is deliberate: at 50 Hz a
- * single disturbed period lasts 20 ms, which is visible as a bright flash
- * while the duty cycle is changing quickly.
+ * The divider is shared with &csg0, which the board dtsi sets to 2. 240
+ * divides the 240 MHz peripheral clock to a 1 MHz counter, giving the 1 kHz
+ * PWM above exactly 1000 brightness steps.
+ *
+ * This replaces an earlier 9600 (25 kHz counter, 50 Hz PWM). 50 Hz was slow
+ * enough to see: measured on KIT_PSC3M5_CC2 2026-10-02, the output flashed
+ * brightly whenever the duty cycle changed quickly, because one disturbed
+ * period lasts a full 20 ms. The TCPWM itself was cleared of blame first -
+ * CC0 and CC0_BUFF tracked every request exactly and the counter was never
+ * restarted - so the fix is the frequency, not the driver. Both boards use
+ * the same group 5 divider, so both carry the same change.
  */
-&peri0_group5_16bit_0 {
-	status = "okay";
+&peri0_group5_16bit_0 {	status = "okay";
 	clock-div = <240>;
 };
 

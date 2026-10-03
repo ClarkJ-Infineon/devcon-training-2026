@@ -23,9 +23,13 @@
  * the route is made here with a direct PDL call. The pin-mux half of the
  * job is done in devicetree - see boards/led_trigmux.overlay.
  *
- * The mux passes the PWM level through cleanly, with no visible clock-domain
- * resynchronisation, and the tr_io_output path needs no extra PERI clock
- * gating. The LED fades smoothly across the full potentiometer range.
+ * STATUS: VERIFIED ON HARDWARE (2026-09-19, KIT_PSC3M5_EVK rev A0). Flashed
+ * to one board while a second board ran the soft-PWM back-end; both LEDs
+ * faded identically across the full potentiometer range with no flicker,
+ * stepping or stuck extremes. That settles both residual risks recorded in
+ * outputs/zephyr/engineering/psc3m5-pwm-led-trigger-mux/findings.md: the mux
+ * passes the level through cleanly (no visible clock-domain resynchronisation)
+ * and the tr_io_output path needs no extra PERI clock gating.
  *
  * If this back-end ever misbehaves, rebuild without -DLED_TRIGMUX=y to fall
  * back to the soft-PWM path.

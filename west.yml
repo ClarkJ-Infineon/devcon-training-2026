@@ -1,7 +1,7 @@
 # West manifest for the DevCon 2026 FAE training event.
 #
 # Bundles the lab applications (PSOC Control CAN lab, PSOC Edge E84 display
-# lab) and pins a trimmed project list against a mainline-based Zephyr
+# lab and dashboard lab) and pins a trimmed project list against a mainline-based Zephyr
 # branch, rather than importing upstream Zephyr's full west.yml. The list
 # below contains only the modules the labs require; upstream's manifest
 # would additionally fetch every other vendor HAL, babblesim and TF-M.
@@ -20,7 +20,7 @@ manifest:
     - name: zephyr
       remote: clarkj-infineon
       repo-path: zephyr
-      revision: a083e21159d3668a33e58c47a354df116b2986a2
+      revision: 289eb050d314d499b7105d7f2a20e74385a8b043
       west-commands: scripts/west-commands.yml
 
     - name: hal_infineon

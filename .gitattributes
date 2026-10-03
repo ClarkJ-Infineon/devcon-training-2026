@@ -1,0 +1,7 @@
+# Upstream Zephyr is LF-only, and the labs ship parallel app trees that are
+# diffed against each other; mixed endings make those diffs unreadable.
+* text=auto eol=lf
+*.webp binary
+*.png binary
+*.bin binary
+*.hex binary

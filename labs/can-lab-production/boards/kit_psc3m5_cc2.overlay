@@ -7,8 +7,13 @@
  * Shared by both roles (Command node and Telemetry node); only the
  * application code built on top differs.
  *
- * The CAN chain needs no devicetree transceiver node; see the CAN section
- * below for why.
+ * =====================================================================
+ * HARDWARE-VALIDATED ON A REAL KIT_PSC3M5_CC2 (2026-09-22)
+ * =====================================================================
+ *
+ * Boot, console, J-Link flashing and the ADC pot channel have all been
+ * confirmed on physical hardware. The CAN chain is resolved from the
+ * schematic and needs no devicetree transceiver node.
  *
  * P9.0 is net V2_H, a motor 2 inverter gate-drive signal on the Power Board
  * Connector X19. With no power board attached, X19 is an access header, so
@@ -17,6 +22,8 @@
  *
  * Hardware PWM still cannot reach an on-board LED: the user LEDs are on
  * P9.4/P9.5, which have no TCPWM option, so the lab keeps its software PWM.
+ *
+ * Everything here is derived from verified sources or measured on the board.
  */
 
 #include <zephyr/dt-bindings/adc/adc.h>
@@ -27,10 +34,11 @@
 / {
 	/*
 	 * ==================================================================
-	 * HPPASS SAR potentiometer channel
+	 * HPPASS SAR potentiometer channel - CONFIRMED ON HARDWARE
 	 * ==================================================================
 	 *
-	 * Channel 12 is the pot channel.
+	 * Channel 12 is correct. This was measured on a real board on
+	 * 2026-09-22, not inferred.
 	 *
 	 * The KIT_PSC3M5_CC2 ModusToolbox BSP routes the two pots to
 	 *
@@ -51,13 +59,13 @@
 	 * artefact of the driver, not the board. In a multi-channel sequence
 	 * the results come back shifted by one position: the value printed
 	 * for position N is the conversion of position N-1. Reordering the
-	 * scan confirms it - the full-scale reading follows the scan position,
+	 * scan proved it - the full-scale reading followed the scan position,
 	 * never the channel number.
 	 *
 	 * A single-channel build (only channel 12 declared) reads the pot
 	 * correctly, because with one channel a shifted result is still that
 	 * same channel. The lab only ever reads one channel, so it is not
-	 * affected.
+	 * affected. See findings.md section 7.2.
 	 */
 
 	zephyr,user {
@@ -69,8 +77,9 @@
 	};
 
 	/*
-	 * CAN transceiver control
-	 * ---------------------
+	 * ==================================================================
+	 * RESOLVED (Clark, schematic, 2026-09-22) - CAN transceiver control
+	 * ==================================================================
 	 *
 	 * The CAN front end on KIT_PSC3M5_CC2 is galvanically isolated and has
 	 * one more link in the chain than KIT_PSC3M5_EVK:
@@ -80,11 +89,11 @@
 	 *                     2DIB1400F
 	 *                  dual digital isolator
 	 *
-	 * From the schematic:
+	 * Confirmed from the schematic:
 	 *
 	 *   - Pin direction matches this board's ModusToolbox BSP exactly:
 	 *     P6.3 = CYBSP_CAN_TX, P6.2 = CYBSP_CAN_RX. Two independent
-	 *     sources agree.
+	 *     sources agree, so the pinctrl below is not an assumption.
 	 *
 	 *   - The TLE9371VSJ STB pin is tied DIRECTLY TO GND (the isolated
 	 *     ground). STB is active high, so a hard ground means the
@@ -164,7 +173,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	/* POT1 - see the block above. */
+	/* POT1. Confirmed on hardware 2026-09-22 - see the block above. */
 	channel@c {
 		reg = <12>;
 		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
@@ -191,11 +200,14 @@
  * board dtsi sets to 2.
  *
  * 240 divides the 240 MHz peripheral clock to a 1 MHz counter, giving the
- * 1 kHz PWM above exactly 1000 brightness steps. 1 kHz is deliberate: at
- * 50 Hz a single disturbed period lasts 20 ms, which is visible as a bright
- * flash while the duty cycle is changing quickly. This mirrors what the KIT_PSC3M5_EVK overlay already does and
- * is a known, working quirk rather than a new one.
- */
+ * 1 kHz PWM above exactly 1000 brightness steps.
+ *
+ * This replaces an earlier 9600 (25 kHz counter, 50 Hz PWM). 50 Hz was slow
+ * enough to see: measured on hardware 2026-10-02, the output flashed brightly
+ * whenever the duty cycle changed quickly, because one disturbed period lasts
+ * a full 20 ms. The TCPWM itself was cleared of blame first - CC0 and CC0_BUFF
+ * tracked every request exactly and the counter was never restarted - so the
+ * fix is the frequency, not the driver. At 1 kHz the same fade is smooth. */
 &peri0_group5_16bit_0 {
 	status = "okay";
 	clock-div = <240>;
@@ -222,12 +234,12 @@
  * no override.
  *
  * ---------------------------------------------------------------------
- * 2DIB1400F fail-safe state
+ * RESOLVED (measured on hardware, 2026-09-24) - 2DIB1400F fail-safe state
  * ---------------------------------------------------------------------
  *
  * Between the MCU and the transceiver sits a 2DIB1400F digital isolator.
- * If its outputs idled LOW with its inputs undriven, that would be a latent
- * hazard:
+ * Earlier datasheet review recorded its default output state as LOW, which
+ * would have meant a latent hazard:
  *
  *     P6.3 undriven  ->  INA floating  ->  OUTA LOW  ->  TXD LOW
  *                     ->  transceiver drives a PERMANENT DOMINANT bit
@@ -237,10 +249,13 @@
  * driver applies pinctrl, and indefinitely if the board is unprogrammed,
  * held in reset, or halted at a debugger breakpoint before CAN init.
  *
- * THE HAZARD DOES NOT EXIST ON THIS BOARD. With one board held in its
- * post-reset halted state - the worst case, with peripherals reset, CAN pins
- * back to Hi-Z inputs and the isolator input undriven - the surviving board
- * reports, once every 5 s:
+ * THE HAZARD DOES NOT EXIST ON THIS BOARD. Measured with two boards on one
+ * bus, no multimeter required. One board was held in its post-reset halted
+ * state (JLink: connect / r / h / Sleep), which is the exact worst case -
+ * peripherals reset, CAN pins back to Hi-Z inputs, isolator input undriven.
+ * It was confirmed genuinely held by its console going completely silent.
+ *
+ * The surviving board then reported, once every 5 s:
  *
  *     CAN send failed (-11) state=2 tx_err=0 rx_err=123 (601 dropped)
  *

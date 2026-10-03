@@ -1,0 +1,357 @@
+/*
+ * Copyright (c) 2026 Infineon Technologies AG,
+ * or an affiliate of Infineon Technologies AG.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * DevCon 2026 PSOC Edge lab - Device Dashboard overlay (cheat tier).
+ *
+ * Two halves, both needed by the dashboard:
+ *   1. Display + touch: Waveshare 4.3" DSI panel (800x480 active /
+ *      832x480 total timing) on the infineon_dc controller, plus the
+ *      FocalTech touch controller already present on i2c0.
+ *   2. LED PWM: the three on-board LEDs rerouted from gpio-leds to TCPWM
+ *      so they can be dimmed rather than just switched.
+ *
+ * The PWM half was brought up and proven on real hardware before being
+ * merged in here - see zephyr-apps/e84-pwm-proof/.
+ */
+
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/display/panel.h>
+#include <zephyr/dt-bindings/clock/ifx_clock_source_common.h>
+#include <zephyr/dt-bindings/memory-attr/memory-attr-arm.h>
+
+/*
+ * MIPI DSI PHY reference clock.
+ *
+ * clk_hf12 is not a peripheral bus clock - no IP in the PDL's MMIO table
+ * claims it (GFXSS itself runs from CLK_HF1, which the board already
+ * drives at the 400 MHz that display_infineon_dc.c's hardcoded
+ * GFXSS_config.clockHz expects). It is the DSI PHY's PLL reference, and
+ * like most DSI PHYs this one needs a reference in the ~25 MHz range.
+ *
+ * Both mainline and Infineon's downstream kit_pse84_eval_m33.dts leave
+ * clk_hf12 on CLKPATH4, which has no DPLL attached and so falls back to
+ * the 50 MHz IMO - too fast for the PHY to lock. Measured on hardware
+ * with Cy_SysClk_ClkHfGetFrequency(). The failure is completely silent:
+ * the display controller still raises frame-complete interrupts, panel
+ * I2C still works, every init call still returns 0, and the only visible
+ * symptom is that the panel's backlight never turns on (this panel gates
+ * its backlight on locking to a valid video stream).
+ *
+ * CLKPATH3 divided by 2 gives 25 MHz. This matches the known-working
+ * configuration used for the PSOC Edge graphics benchmarking work on this
+ * same board and panel, which carried the identical app-level override.
+ */
+&clk_hf12 {
+	status = "okay";
+	source-path = <IFX_CLK_HF_IN_CLKPATH3>;
+	clock-div = <IFX_CLK_HF_DIVIDE_BY_2>;
+};
+
+/ {
+	chosen {
+		zephyr,display = &display_controller;
+	};
+
+	soc {
+		/*
+		 * display_infineon_dc.c hard-codes a reference to a DT
+		 * nodelabel literally named "gfx_mem" (GFX_BUF_ADDR_BASE =
+		 * DT_REG_ADDR(DT_NODELABEL(gfx_mem))) for its frame buffer.
+		 * Mainline's kit_pse84_eval board files never carried this
+		 * node over from Infineon's downstream fork (only m55_data,
+		 * 256 KB at 0x26100000, is reserved there) - add it here.
+		 * SOCMEM is 0x26000000..0x26500000 (5 MB); this carves out
+		 * 2 MB starting right after m55_data, well clear of the 5 MB
+		 * bound. No GPU/vg_lite in this smoke test, so the whole
+		 * region is available to the DC's plain framebuffer.
+		 */
+		gfx_mem: memory@26140000 {
+			compatible = "zephyr,memory-region", "mmio-sram";
+			zephyr,memory-region = "GFX_MEMORY";
+			reg = <0x26140000 DT_SIZE_M(2)>;
+
+			/*
+			 * The display controller DMAs the frame buffer
+			 * straight out of SOCMEM while the CM55 renders into
+			 * it through its D-cache, so this region has to be
+			 * mapped non-cacheable or the DC scans out whatever
+			 * stale contents SOCMEM happens to hold - the dirty
+			 * cache lines may never be written back. The symptom
+			 * is garbled/torn output with an otherwise perfectly
+			 * healthy pipeline (DC interrupts firing, every flush
+			 * returning success).
+			 *
+			 * Infineon's downstream fork solves this with a
+			 * bespoke ".cy_gpu_buf" non-cacheable linker section,
+			 * which mainline has no equivalent of. The portable
+			 * way is the standard memory-attr binding.
+			 */
+			zephyr,memory-attr = <DT_MEM_ARM(ATTR_MPU_RAM_NOCACHE)>;
+		};
+	};
+};
+
+&i2c0 {
+	waveshare_panel: waveshare_panel@45 {
+		compatible = "waveshare,4p3";
+		reg = <0x45>;
+		status = "okay";
+		pixel-format = <PANEL_PIXEL_FORMAT_RGB_888>;
+		height = <480>;
+		width = <832>;
+	};
+
+	/*
+	 * U18 on the base board (sheet 18). The TLV320DAC3100's RESET pin is
+	 * pulled to VDD_1V8 through R156 and only brought out to an
+	 * unpopulated test point, so there is no GPIO to name here. Mainline
+	 * required reset-gpios until very recently; the fork carries the
+	 * change that makes it optional, after which the driver falls back to
+	 * the I2C software reset it issues anyway.
+	 *
+	 * The 3.5 mm headphone jack on this board is a do-not-install part,
+	 * so the only usable output is the mono class-D speaker on SPKP/SPKM.
+	 * The in-tree driver configures both output paths unconditionally, so
+	 * nothing extra is needed to select the speaker - only its gain. The
+	 * onboard MCABS-247-RC is quiet at the 6 dB reset default; 18 dB is
+	 * comfortable without clipping.
+	 */
+	audio_codec: tlv320dac3100@18 {
+		compatible = "ti,tlv320dac";
+		reg = <0x18>;
+		speaker-gain = <18>;
+		status = "okay";
+	};
+};
+
+/*
+ * I2S0 drives the codec only - the DAC3100 has no ADC - so only the transmit
+ * direction and its DMA channel are described. The board's PDM microphones
+ * are deliberately left out: this lab plays feedback tones, it does not
+ * record.
+ */
+&i2s0 {
+	pinctrl-0 = <&p21_3_tdm_i2s0_tx_mck &p21_2_tdm_i2s0_tx_sck
+		     &p12_3_tdm_i2s0_tx_fsync &p21_1_tdm_i2s0_tx_sd>;
+	pinctrl-names = "default";
+	clocks = <&peri1_group1_16_5bit_0>;
+	status = "okay";
+
+	dmas = <&dma0 1>;
+	dma-names = "tx";
+};
+
+&p21_3_tdm_i2s0_tx_mck {
+	drive-push-pull;
+	drive-strength = "half";
+};
+
+&p21_2_tdm_i2s0_tx_sck {
+	drive-push-pull;
+	drive-strength = "half";
+};
+
+&p12_3_tdm_i2s0_tx_fsync {
+	drive-push-pull;
+	drive-strength = "half";
+};
+
+&p21_1_tdm_i2s0_tx_sd {
+	drive-push-pull;
+	drive-strength = "half";
+};
+
+/*
+ * MCLK to the codec. clk_hf7 feeds peri1_group1 and is left at the board
+ * default (CLKPATH1 / dpll_lp1 = 49.152 MHz), so /4 gives exactly
+ * 12.288 MHz. At 16 kHz / 16-bit / stereo the I2S driver then divides to
+ * 512 kHz and the codec resolves to an integer set of DAC dividers - the
+ * point of picking a 49.152 MHz path is that every division below it comes
+ * out exact, so there is no sample-rate error to hear.
+ *
+ * Note this property is the divisor itself, despite infineon,peri-div.yaml
+ * documenting it as (clock-div + 1).
+ */
+&peri1_group1_16_5bit_0 {
+	status = "okay";
+	clock-div = <3>;
+	div-frac-value = <0>;
+};
+
+&dma0 {
+	status = "okay";
+};
+
+&gpio_prt12 {
+	status = "okay";
+};
+
+&gpio_prt21 {
+	status = "okay";
+};
+
+&display_controller {
+	status = "okay";
+
+	height = <480>;
+	width = <832>;
+
+	pixel-clock-khz = <33768>;
+	hsync-width = <10>;
+	hfp = <210>;
+	hbp = <20>;
+	vsync-width = <5>;
+	vfp = <20>;
+	vbp = <20>;
+
+	data-lanes = <1>;
+	per-lane-mbps = <810>;
+
+	input-pixel-format = <PANEL_PIXEL_FORMAT_RGB_565>;
+	panel = <&waveshare_panel>;
+};
+
+/* ---- LED PWM path (proven on hardware 2026-10-02) ---- */
+
+/*
+ * The board's gpio-leds node drives these same three pins as plain GPIO
+ * outputs at init, which would fight the TCPWM peripheral for the pin. The
+ * node has no nodelabel, so reference it by path.
+ */
+&{/leds} {
+	status = "disabled";
+};
+
+/*
+ * Each LED pin has a direct TCPWM option in the SoC pinctrl file
+ * (pse84.bga-220_s.dtsi), so the counter output reaches the pad with no
+ * trigger-mux routing:
+ *
+ *   LED0 / Red    P16.7 -> p16_7_pwm0_7 -> tcpwm0_7
+ *   LED1 / Green  P16.6 -> p16_6_pwm0_6 -> tcpwm0_6
+ *   LED2 / Blue   P16.5 -> p16_5_pwm0_5 -> tcpwm0_5
+ *
+ * Both the TCPWM instance and its pwm child default to disabled, so each
+ * needs enabling explicitly.
+ */
+/*
+ * The TCPWM counter needs a peripheral clock divider. This is the part the
+ * binding does not tell you about: infineon,tcpwm-pwm.yaml never declares
+ * "clocks" as required, but pwm_infineon_tcpwm.c dereferences it
+ * unconditionally (PWM_PERI_CLOCK_INIT reads peri-group, div-type and
+ * channel straight off the phandle). Omit it and you get a wall of macro
+ * expansion errors rather than a devicetree diagnostic.
+ *
+ * TCPWM0 sits in peripheral instance 0, group 1 (clk-dst 0x112/0x113/0x114),
+ * so the divider has to come from that same group. The board already claims
+ * peri0_group1_16bit_1 for UART2 and _16bit_3 for I2C0, leaving _16bit_0
+ * and _16bit_2 free.
+ *
+ * One divider feeds all three LEDs: they share a period, and a divider is a
+ * clock source that any number of destinations can be assigned to.
+ */
+&peri0_group1_16bit_0 {
+	status = "okay";
+	clock-div = <1>;
+};
+
+&tcpwm0_7 {
+	status = "okay";
+};
+
+&pwm0_7 {
+	status = "okay";
+	clocks = <&peri0_group1_16bit_0>;
+	pinctrl-0 = <&p16_7_pwm0_7>;
+	pinctrl-names = "default";
+};
+
+&tcpwm0_6 {
+	status = "okay";
+};
+
+&pwm0_6 {
+	status = "okay";
+	clocks = <&peri0_group1_16bit_0>;
+	pinctrl-0 = <&p16_6_pwm0_6>;
+	pinctrl-names = "default";
+};
+
+&tcpwm0_5 {
+	status = "okay";
+};
+
+&pwm0_5 {
+	status = "okay";
+	clocks = <&peri0_group1_16bit_0>;
+	pinctrl-0 = <&p16_5_pwm0_5>;
+	pinctrl-names = "default";
+};
+
+/*
+ * Routing the pin to the TCPWM is only half the job. The Infineon pinctrl
+ * driver starts from CY_GPIO_DM_ANALOG and only moves off it if the node
+ * asks for a drive mode or a bias - see soc_gpio_get_drv_mode() in
+ * drivers/pinctrl/pinctrl_infineon.c. A node carrying nothing but "pinmux"
+ * therefore leaves the pad in analog high-Z: correctly muxed to the counter
+ * and driving nothing.
+ *
+ * Nothing reports this. The PWM driver programs its registers happily and
+ * every pwm_set_pulse_dt() call returns 0, because no part of the chain can
+ * see that the pad is disconnected. The only symptom is a dark LED.
+ *
+ * The board's own pinctrl file does the same thing for every output it uses
+ * (drive-push-pull on each UART TX, drive-open-drain plus input-enable on
+ * the I2C pair), which is the idiom followed here. No input-enable: these
+ * pins are outputs only, so the input buffer stays off.
+ */
+&p16_7_pwm0_7 {
+	drive-push-pull;
+};
+
+&p16_6_pwm0_6 {
+	drive-push-pull;
+};
+
+&p16_5_pwm0_5 {
+	drive-push-pull;
+};
+
+/ {
+	/*
+	 * pwm-leds gives us the pwm_dt_spec helpers (pwm_set_pulse_dt), which
+	 * is the API the lab teaches. The period lives in the pwm-cells: the
+	 * first cell is the channel (unused by this driver), the second the
+	 * period in ns, the third the flags.
+	 *
+	 * 1 ms period = 1 kHz, comfortably above the ~100 Hz flicker-fusion
+	 * threshold, so a dimmed LED looks steady rather than strobing.
+	 */
+	pwmleds {
+		compatible = "pwm-leds";
+
+		pwm_led_red: pwm_led_red {
+			pwms = <&pwm0_7 0 PWM_MSEC(1) PWM_POLARITY_NORMAL>;
+			label = "PWM LED_0 Red";
+		};
+
+		pwm_led_green: pwm_led_green {
+			pwms = <&pwm0_6 0 PWM_MSEC(1) PWM_POLARITY_NORMAL>;
+			label = "PWM LED_1 Green";
+		};
+
+		pwm_led_blue: pwm_led_blue {
+			pwms = <&pwm0_5 0 PWM_MSEC(1) PWM_POLARITY_NORMAL>;
+			label = "PWM LED_2 Blue";
+		};
+	};
+
+	aliases {
+		pwm-led0 = &pwm_led_red;
+		pwm-led1 = &pwm_led_green;
+		pwm-led2 = &pwm_led_blue;
+	};
+};

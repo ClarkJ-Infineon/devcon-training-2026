@@ -2,7 +2,8 @@
 #
 # PSOC Control CAN Command & Telemetry lab - skeleton application.
 #
-# Build from a west workspace initialised with this manifest:
+# Build against an existing ifx-zephyr workspace (the one set up in the
+# 2-hour Zephyr intro session):
 #
 #   west build -b kit_psc3m5_evk -p always -s <path-to-this-dir> -- \
 #       -DEXTRA_CONF_FILE=conf/role_command.conf

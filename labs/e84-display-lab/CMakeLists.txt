@@ -8,7 +8,9 @@
 #
 #   west build -b kit_pse84_eval/pse846gps2dbzc4a/m55 -p always -s <path-to-this-dir>
 #
-# See ../../README.md for the lab layout.
+# See ../../README.md for the lab layout and
+# outputs/zephyr/engineering/devcon-training-branch/plan.md for the full
+# background on why this app exists (E84 display driver port).
 
 cmake_minimum_required(VERSION 3.20.0)
 

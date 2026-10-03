@@ -39,10 +39,10 @@ cannot select one vendor. This manifest therefore lists projects explicitly:
 
 | Project | Purpose |
 |---|---|
-| `zephyr` | the training branch: mainline plus the E84 display driver port and an I2C PDL fix |
+| `zephyr` | the training branch: mainline plus the E84 display driver port and a handful of Infineon driver fixes |
 | `hal_infineon` | PSOC™ Control and PSOC™ Edge PDL/HAL |
 | `cmsis`, `cmsis_6` | ARM CMSIS core headers, required by `hal_infineon` |
-| `lvgl` | graphics library for the E84 display lab |
+| `lvgl` | graphics library for the E84 display and dashboard labs |
 
 No `segger`, no other vendor HALs, and no babblesim, TF-M or testing-only
 modules. Download footprint is approximately **2.6 GB**, against **7.9 GB**
@@ -50,7 +50,7 @@ for upstream Zephyr's complete default manifest — a **~67% reduction**.
 
 ## Zephyr branch contents
 
-The pinned `devcon-training-2026` branch adds three things to mainline Zephyr:
+The pinned `devcon-training-2026` branch adds the following to mainline Zephyr:
 
 - The `infineon_dc` MIPI-DSI display controller driver and the Waveshare DSI
   panel drivers, required by the E84 display lab.
@@ -62,15 +62,22 @@ The pinned `devcon-training-2026` branch adds three things to mainline Zephyr:
   alias `0x12000000`, while the SEGGER loader exposes a single bank at
   `0x22000000`, so the chip erase succeeds and the program fails. The board now
   defaults to the `openocd` runner, as `kit_psc3m5_evk` already does.
+- Driver fixes the E84 dashboard lab depends on: the `infineon,tcpwm-pwm`
+  binding now marks `clocks` required (a PWM node without a clock divider
+  builds cleanly and silently produces no output); `i2c_infineon_pdl` releases
+  the caller buffer on an error path and no longer logs every abort timeout
+  from the ISR; `tlv320dac310x` treats `reset-gpios` as optional, which the
+  E84 codec requires; and the PDL DMA driver no longer reports a benign
+  underrun as an error.
 
-## E84 display lab requires `--sysbuild`
+## E84 labs require `--sysbuild`
 
 The E84 `m55` board target is a dual-core build and must be built with
 `west build --sysbuild`. The CM55 core starts only once a CM33 companion image
 calls `Cy_SysEnableCM55()`; a plain `west build` succeeds but produces an image
 that never boots. `west flash` programs both images once built with sysbuild.
 
-See `labs/e84-display-lab/README.md` for the full build and flash commands.
+See each E84 lab's own README for the full build and flash commands.
 
 ## Patches
 
@@ -96,10 +103,12 @@ the display lab, not only the Helium and GPU ones -- see that lab's README.
 | Lab | Board(s) | Path |
 |---|---|---|
 | PSOC™ Control CAN Command & Telemetry (4 tiers) | KIT_PSC3M5_CC2 / KIT_PSC3M5_EVK | `labs/can-lab-{cheat,beginner,advanced,production}` |
+| PSOC™ Edge E84 Touch UI dashboard (3 tiers) | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-dashboard-{cheat,beginner,advanced}` |
 | PSOC™ Edge E84 Display / LVGL smoke test | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-display-lab` |
 
 Each lab has its own README with build commands and board target strings.
-Flash with `west flash` from the lab directory.
+Flash with `west flash` from the lab directory. The classroom-facing lab
+guides are under `docs/`.
 
 ## Limitations
 

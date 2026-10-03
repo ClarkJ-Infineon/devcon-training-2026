@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Kconfig for the tilt_filter module.
+#
+# This is the whole reason the module exists as a teaching device: the
+# symbol below is what connects "a directory on disk" to "code in the
+# build". Set TILT_FILTER=n and this module contributes nothing.
+
+menuconfig TILT_FILTER
+	bool "Tilt smoothing filter"
+	help
+	  Exponential moving-average filter for the accelerometer-derived
+	  tilt angles that drive the dashboard's tilt meter.
+
+	  The raw BMI270 readings are visibly jittery - the meter twitches a
+	  degree or two even with the board sitting still on a desk. This is
+	  not cosmetic: an unfiltered value makes the UI look broken.
+
+if TILT_FILTER
+
+config TILT_FILTER_ALPHA_PERCENT
+	int "Smoothing factor (percent)"
+	range 1 100
+	default 20
+	help
+	  Weight given to each new sample, as a percentage.
+
+	  100 disables smoothing entirely (output follows input exactly).
+	  Lower values are smoother but lag further behind real motion.
+	  20 is a reasonable starting point; try 5 and 80 to feel the
+	  trade-off on real hardware.
+
+endif # TILT_FILTER

@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Kconfig for the beeper module.
+#
+# The second of the lab's two local modules. tilt_filter shows a module that
+# is pure arithmetic; this one shows a module that owns a pair of devices and
+# a thread, which is the more realistic shape. Both are reached the same way:
+# a directory named in ZEPHYR_EXTRA_MODULES, a symbol set in prj.conf.
+
+menuconfig BEEPER
+	bool "Touch feedback tones"
+	depends on I2S && AUDIO_CODEC
+	help
+	  Short tones played through the board's TLV320DAC3100 codec and
+	  onboard speaker when a slider is released.
+
+	  The module owns i2s0 and the codec node outright: nothing else in
+	  the application touches either. Set BEEPER=n and the application
+	  still builds and runs, silently.
+
+if BEEPER
+
+config BEEPER_TONE_HZ
+	int "Release tone frequency (Hz)"
+	range 100 8000
+	default 1760
+	help
+	  Frequency of the tone played by beeper_click(), when a control is
+	  released.
+
+	  1760 Hz is A6 - high enough to read as a UI tick rather than a
+	  beep, and comfortably inside the small speaker's usable range.
+	  The upper limit is the Nyquist frequency of the 16 kHz sample
+	  rate; approaching it will alias audibly.
+
+config BEEPER_TONE_MS
+	int "Release tone duration (ms)"
+	range 10 80
+	default 40
+	help
+	  Duration of the tone played by beeper_click().
+
+	  The whole tone is generated and queued before the transmitter is
+	  started, so the upper limit is set by how much the module's memory
+	  slab holds (see BEEPER_BLOCK_COUNT in src/beeper.c).
+
+config BEEPER_PRESS_HZ
+	int "Press tone frequency (Hz)"
+	range 100 8000
+	default 880
+	help
+	  Frequency of the tone played by beeper_press(), when a control is
+	  first touched.
+
+	  880 Hz is A5 - exactly one octave below the release tone. The
+	  octave is why the pair sounds like one gesture rather than two
+	  unrelated beeps; try moving it to 900 to hear how much that
+	  relationship is doing.
+
+config BEEPER_PRESS_MS
+	int "Press tone duration (ms)"
+	range 10 80
+	default 25
+	help
+	  Duration of the tone played by beeper_press().
+
+	  Shorter than the release tone on purpose. The press is an
+	  acknowledgement, the release is the result, and making the first
+	  lighter than the second is what keeps a drag from sounding like a
+	  stutter.
+
+config BEEPER_VOLUME_PERCENT
+	int "Tone amplitude (percent of full scale)"
+	range 1 100
+	default 25
+	help
+	  Peak amplitude of the generated tone, as a percentage of 16-bit
+	  full scale.
+
+	  This is the digital level. Analogue gain is separate and lives in
+	  the devicetree as the codec node's speaker-gain property - two
+	  different knobs for the same thing, which is worth knowing about
+	  before reaching for either.
+
+endif # BEEPER
