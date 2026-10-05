@@ -1,26 +1,41 @@
 # PSOC™ Control — Command & Telemetry over CAN
 ### Advanced Zephyr Lab Guide (DevCon FAE Training, Session 2)
 
-**Duration:** 60 minutes | **Board:** KIT_PSC3M5_EVK (2 per pair), or KIT_PSC3M5_CC2 — see §11 | **Prerequisite:** attendees have completed the 2-hour Zephyr intro session (toolchain installed, `west build`/`west flash` already verified working)
+|  |  |
+| --- | --- |
+| **Board** | KIT_PSC3M5_EVK (PSOC™ Control C3M5), two per pair — or KIT_PSC3M5_CC2, see §11 |
+| **Duration** | 60 minutes |
+| **Prerequisite** | A working workspace from the intro session — see §3 |
+| **You will touch** | Devicetree, Kconfig, and application code |
+| **Status** | Hardware-validated end to end on both board variants |
 
-App source: `labs/` (this repo).
+App source: `labs/` in the training repo. Developer/build reference:
+`labs/README.md`.
 
 ---
 
-## 1. Instructor framing (read this to the room before starting)
+## 1. Why this lab is shaped the way it is
 
-This lab demonstrates the **sensing → networking → actuation plumbing** a
-real motor-control or power-conversion system relies on: reading an analog
-input, packaging it, sending it over a real-time fieldbus, and acting on it
-at the far end. PSOC™ Control's actual target market is motor control and
-power conversion, and CAN/CAN FD is a common fieldbus in those systems —
-that's why this exercise uses it.
+This lab is the **sensing → networking → actuation plumbing** that a real
+motor-control or power-conversion system is built on: read an analog input,
+package it, put it on a real-time fieldbus, and act on it at the far end.
+PSOC™ Control targets motor control and power conversion, and CAN/CAN FD is a
+common fieldbus in those systems — which is why the hour is spent here.
 
-**What this lab is *not*:** a closed-loop motor control demo. The real
-closed-loop control loop in a production system runs in dedicated real-time
-firmware (not Zephyr, and not in the 60 minutes you have here). Please
-don't oversell this to attendees as "real motor control" — frame it as
-"the plumbing a motor control system is built on top of."
+**This is not a closed-loop motor control demo.** The real control loop in a
+production system runs in dedicated real-time firmware — not in Zephyr, and
+not in sixty minutes. What you are building is the layer that loop sits on
+top of.
+
+The reason it takes an hour is that the three places a Zephyr application is
+actually assembled all have to agree with each other. **Devicetree** says what
+hardware exists. **Kconfig** says what software gets built. **Application
+code** says what any of it is for. When they disagree, the board usually says
+nothing at all — and this lab makes them disagree, deliberately, more than
+once.
+
+It is also a **paired lab**. Your board is half of a system, and the finish
+line needs both halves running. That shapes everything from §3 onward.
 
 ---
 
@@ -53,52 +68,63 @@ flowchart LR
 
 ---
 
-## 3. Setup verification (5 min)
+## 3. Setup verification (3 min)
 
-Before touching any lab files, confirm the basics from the intro session
-still work:
+Everything here was done in the intro session. This is a check, not a setup —
+but do it now rather than at minute 29, because none of it is fixable mid-lab.
 
-1. Both boards enumerate and `west flash` works — flash *any* known-good
-   sample (e.g. `samples/hello_world`) to each board if you're not sure.
-2. Get the lab source: `git clone`/pull this repo, or have it pre-staged on
-   classroom machines. Then **pick your tier** — `labs/can-lab-beginner/`,
-   `labs/can-lab-advanced/` or `labs/can-lab-cheat/`. Nobody
-   assigns this to you; see §9 for what each one gives you. If you're unsure,
-   take `can-lab-beginner` — you can move up mid-lab at no cost. The rest of
-   this guide says `can-lab-advanced`; substitute whichever folder you chose,
-   because the step numbering is identical in all three.
-3. **You do not need a new west workspace.** Build your chosen tree against
-   your existing `ifx-zephyr` workspace from the intro session, the same
-   way as any other out-of-tree app:
-   ```powershell
-   cd <your ifx-zephyr-workspace>
-   west build -b kit_psc3m5_evk -p always -d build_command `
-       -s <repo>\zephyr-apps\can-lab-advanced -- `
-       -DEXTRA_CONF_FILE=conf/role_command.conf
-   ```
-4. **Expect this to fail — that is correct.** The untouched `can-lab-advanced` stops
-   with a deliberate, friendly `#error`:
+1. **Your workspace exists and your toolchain is registered.** From inside
+   `devcon-ws`:
 
-   ```
-   No ADC channel on /zephyr,user. Complete Step 1
-   (your board's overlay in boards/, TODO 1a/1b) before building
-   ```
+```
+   west sdk list
+```
 
-   That message *is* your confirmation that the toolchain works — you got
-   far enough through CMake and the devicetree build to reach the
-   application's own compile-time check. If you see a different error
-   (missing board, no toolchain, no west workspace), flag your instructor
-   now; don't start editing devicetree.
+   You want version `1.0.1` with `arm-zephyr-eabi` listed. If the command is
+   not recognised, you are not in `devcon-ws`.
 
-> ### Instructor — hour-zero smoke test
->
-> Before the room starts editing, flash **both** boards with the
-> pre-built reference binary (`can-lab-production/`, one board per role) and prove
-> the wiring and the LED sync work. Do this as a demo at the front: it
-> sets the target behaviour in everyone's mind, and it eliminates
-> "is my hardware broken?" as a variable for the rest of the hour. The
-> `can-lab-advanced` tree deliberately won't build until Steps 1 and 2 are done, so it
-> can't serve as the smoke test itself.
+2. **Your flash configuration survived.** Still in `devcon-ws`:
+
+```
+   west config build.cmake-args
+```
+
+   This should print a line pointing at the ModusToolbox™ Programming Tools
+   OpenOCD. If it says `build.cmake-args is unset`, re-run the `west config`
+   command from the setup guide now — without it `west flash` cannot reach the
+   board.
+
+3. **Your board enumerates.** One USB cable to the KitProg3 connector, and a
+   COM port in Device Manager. Note the number — in this lab your partner has
+   one too, and they will not be the same.
+
+4. **Your serial console is open** at **115200 8N1**.
+
+5. **You have flashed this board at least once** — the blinky from the intro
+   session counts, and is the whole reason that session ended with one.
+
+### Pick your tier now
+
+The lab ships as **three parallel copies of the same application**, differing
+only in how much of the code is written for you. Nobody assigns you one, and
+you can move between them mid-lab at no cost. §9 describes them in full; if
+you are undecided, take `can-lab-beginner`.
+
+| Tier | Pick it if |
+|---|---|
+| `can-lab-beginner` | You want to see the system work end to end without fighting API signatures under time pressure |
+| `can-lab-advanced` | You want to write the driver calls yourself |
+| `can-lab-cheat` | You would rather read working code than write it |
+
+The rest of this guide writes the folder as `<tier>`. Substitute whichever you
+chose — **the step numbering is identical in all three.**
+
+If any of the five checks above fail, pair with a neighbour for the hour. In a
+paired lab that is less of a compromise than it sounds: you still need two
+boards between you either way.
+
+> **Nothing is pre-built.** Your first build happens in §6, takes about two
+> minutes, and every build after it is incremental.
 
 ---
 
@@ -128,7 +154,7 @@ differs, which drives which `.c` file gets compiled in.
 > rebuild with no new code — which is the whole point of the role-select
 > design, and you'll see it pay off in Phase 3.
 
-### Touchpoint 1 — Devicetree (`can-lab-advanced/boards/<your-board>.overlay`)
+### Touchpoint 1 — Devicetree (`can-lab-<tier>/boards/<your-board>.overlay`)
 
 > On KIT_PSC3M5_EVK that file is `boards/kit_psc3m5_evk.overlay`; on
 > KIT_PSC3M5_CC2 it is `boards/kit_psc3m5_cc2.overlay`. The TODO numbering
@@ -159,7 +185,7 @@ show the same nodes fully enabled. Those samples carry **no CC2 overlay**, so
 on the CC2 use `can-lab-production/boards/kit_psc3m5_cc2.overlay` in this repo
 as the worked reference instead.
 
-### Touchpoint 2 — Module import (`can-lab-advanced/prj.conf`)
+### Touchpoint 2 — Module import (`can-lab-<tier>/prj.conf`)
 
 Uncomment two lines to turn on the driver subsystems the devicetree nodes
 above need:
@@ -256,12 +282,20 @@ something is wrong you know it is your board and not the link.
 
 ### Phase 1 — Everyone flashes the command role, boards NOT wired
 
-Each partner builds and flashes the **command** role on their own board:
+Each partner builds and flashes the **command** role on their own board. This
+is your first build, so it carries the full command — board, build directory
+and source tree. From inside `devcon-ws`:
 
 ```
-west build -p always -b kit_psc3m5_evk/psc3m5fds2afq1 can-lab-advanced -- -DEXTRA_CONF_FILE=conf/role_command.conf
-west flash
+west build -b kit_psc3m5_evk -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- -DEXTRA_CONF_FILE=conf/role_command.conf
+west flash -d build/lab
 ```
+
+Substitute `<tier>` with the folder you picked in §3. **This clean build takes
+a minute or two**; every build after it is incremental and much faster,
+because `-d build/lab` means west reuses the same build directory and already
+knows your board and source tree. From here on the guide writes the short
+form.
 
 Expected console:
 
@@ -292,15 +326,14 @@ Check all four of these before moving on:
 > *change* of state, not every failed send), and you'll see a matching
 > `CAN send recovered` line the moment a second node joins the bus.
 
-> **Instructor note — why the callback argument matters.** `can_send()` is
-> handed a small do-nothing `tx_done_cb` rather than `NULL`. This is not
-> cosmetic. With a `NULL` callback Zephyr blocks until the frame is
-> acknowledged, and a node alone on the bus is *never* acknowledged: it
+> **Why the callback argument matters.** `can_send()` is handed a small
+> do-nothing `tx_done_cb` rather than `NULL`. This is not cosmetic. With a
+> `NULL` callback Zephyr blocks until the frame is acknowledged, and a node
+> alone on the bus is *never* acknowledged: it
 > settles at error-passive rather than bus-off, so the driver retries
 > indefinitely and the application hangs on its very first send. Passing a
 > callback makes the send fire-and-forget, which is what lets Phase 1 work
-> at all. This was found on hardware during lab development — worth
-> mentioning if anyone asks why the signature looks over-specified.
+> at all — worth knowing if the signature ever looks over-specified to you.
 
 At the end of Phase 1 every attendee has independently proven ADC → PWM →
 console, with no dependency on their partner.
@@ -341,7 +374,7 @@ short (bench-length) distances used in the classroom. A production CAN bus
 needs 120 Ω at each end; if you extend the wiring significantly or see
 intermittent frame loss, add termination.
 
-> ### Instructor note — the transceiver standby pin (already handled for you)
+> ### The transceiver standby pin (already handled for you)
 >
 > The TLE9251V's **STB (standby) pin is wired to P7.6** and has an internal
 > pull-up, so the transceiver powers up in **standby**: its transmitter is
@@ -380,13 +413,17 @@ turning *one* knob does nothing to the *other* board. See §7 for why.
 
 ### Phase 3 — One partner switches to the telemetry role
 
-Only **one** of the two boards changes. Same source tree, same code you
-just wrote — one different build flag:
+Only **one** of the two boards changes. Same source tree, same build
+directory, same code you just wrote — one different build flag:
 
 ```
-west build -p always -b kit_psc3m5_evk/psc3m5fds2afq1 can-lab-advanced -- -DEXTRA_CONF_FILE=conf/role_telemetry.conf
-west flash
+west build -d build/lab -- -DEXTRA_CONF_FILE=conf/role_telemetry.conf
+west flash -d build/lab
 ```
+
+You do not need `--pristine` and you do not need to name the board or the
+source tree again: west remembers both, notices the changed Kconfig fragment,
+and re-runs the configuration step for you.
 
 That board's console should now print `CAN link up - receiving setpoints`,
 and **its LED1 should follow the other board's knob** within about 50 ms.
@@ -501,29 +538,20 @@ TCPWM PWM peripheral** in touchpoints 1c/3b/3e — it's just mirrored in
 software onto the on-board LED so the classroom demo doesn't need a scope
 or extra LEDs to see the result.
 
-### Instructor note — an experimental hardware-PWM alternative exists
+### There is a real-hardware-PWM path too
 
-The limitation above has since been root-caused: it is a Zephyr software gap,
-not a hardware one. The LED pins can be reached from the TCPWM peripheral
-through the PSOC™ Control C3 trigger multiplexer, and a second, fully
-implemented LED back-end does exactly that:
+The limitation above is a Zephyr software gap, not a hardware one. The LED
+pins **can** be reached from the TCPWM peripheral through the PSOC™ Control C3
+trigger multiplexer, and a second, fully implemented LED back-end does exactly
+that. It is enabled with a single extra build flag, `-DLED_TRIGMUX=y`, and
+with it the on-board LED is driven by a real TCPWM PWM channel rather than by
+software.
 
-```bash
-west build -b kit_psc3m5_evk -p always -s can-lab-production -- \
-    -DEXTRA_CONF_FILE=conf/role_command.conf -DLED_TRIGMUX=y
-```
-
-With that flag the on-board LED is driven by the **real TCPWM PWM channel**,
-not by software — a materially better story for an advanced class.
-
-> ✅ **Validated on hardware (2026-09-19).** Run on a KIT_PSC3M5_EVK alongside
-> a second board on the default soft-PWM path — both LEDs faded identically,
-> with no flicker or stepping. It is still not the default, because the lab as
-> taught does not need it; omit the flag and everything reverts to the
-> software path. The `can-lab-production` tree carries the mechanism.
-
-This does **not** change any attendee touchpoint — it is an instructor-side
-build flag only.
+It is not the default, because the lab as taught does not need it and the two
+fades are visually indistinguishable. It changes no touchpoint and no step.
+Mentioned here only so you know the ceiling is higher than the lab's default
+path suggests — see `labs/README.md` ("On-board LED drive path") for the
+mechanism.
 
 ---
 
@@ -587,7 +615,7 @@ thing — you'll see exactly which TODO is unfinished.
 
 ### Looking things up while you work
 
-Every TODO in the skeleton ends with a **`Docs:`** line linking to the Zephyr
+Every TODO in the starting application ends with a **`Docs:`** line linking to the Zephyr
 reference page for the calls that step needs. You are not expected to work
 from memory, and you are not expected to take the lab's word for it — the
 whole point is that these are documented, stable, public APIs.
@@ -626,57 +654,44 @@ cover most questions attendees bring back from a first Zephyr project.
 
 ---
 
-## 10. Hardware validation status
+## 10. What to expect from the build
 
-This lab has been **validated end to end on two physical KIT_PSC3M5_EVK
-boards** (PSC3M5FDS2AFQ1, rev A0) wired CANH/CANL/GND across their screw
-terminals:
+This lab is known to work. Every step in it has been run end to end on two
+physical boards, on both board variants, wired CANH/CANL/GND across their
+screw terminals — including the deliberate failure modes in §5 and §7. If
+something here does not behave the way the guide says it will, that is worth
+raising rather than working around.
 
-- ✅ Flash, boot and console logging on both boards
-- ✅ ADC potentiometer read and 12→8-bit scaling
-- ✅ Soft-PWM brightness on LED0 (silkscreen LED1)
-- ✅ **Live two-board CAN exchange** — Board B's LED tracks Board A's knob
-- ✅ Short bench wiring works with no added 120 Ω termination
-- ✅ **Optional `-DLED_TRIGMUX=y` back-end** (real TCPWM PWM routed to LED0
-  through the PERI trigger mux) — run on one board against a second board on
-  the soft-PWM path; the two fades were visually indistinguishable
-- ✅ **The TODOs are completable as written** — `can-lab-cheat`, generated by
-  applying only the answers this guide gives, builds warning-free for both
-  roles and runs correctly on hardware
-- ✅ **Same-role mis-flash characterised** (see §7) — two command nodes run
-  with `TEC = 0, REC = 0` and no protocol error, confirming the failure is
-  silent rather than destructive
-- ✅ **Duplicate-command-node detector** in `can-lab-production` — fires on
-  both consoles when two command nodes share a bus, and stays silent in the
-  correct pairing (no false positives from self-reception)
-- ✅ **Partial-build checkpoints** (§5, "If you build before you've finished")
-  — each intermediate state was built on the toolchain and the Steps 1 + 2
-  build was flashed to hardware; the observed behaviour (LED1 constant at
-  50%, LED2 blinking, `setpoint 128` fixed, no CAN traffic) is what the
-  guide promises
-- ✅ **Phase 1 (single unwired command node) verified on hardware** — one
-  `CAN send failed` warning, then a clean `setpoint` trace with the knob
-  driving LED1; hot-plugging the harness produced `CAN send recovered` and
-  live LED sync without a reset
-- ✅ **Miswiring characterised on hardware** (see §7), with the two boards on
-  genuinely separate power sources so there was no common ground through a
-  shared PC — the classroom condition
+### Build times
 
-Remaining gaps for the instructor to close before the event:
+| Build | Roughly |
+|---|---|
+| Your first build (§6, clean) | **1½ – 2 minutes** |
+| Role switch, Phase 3 | 1½ minutes |
+| An edit to your overlay | 40 seconds |
+| An edit to a `.c` file only | under 10 seconds |
+| Re-running a build you have already done | 2 seconds |
 
-- ⚠️ Timing has not been rehearsed with a real audience; the 60-minute budget
-  in §1 is an estimate.
-- ℹ️ **Two board-support-package gaps** were found and worked around in this
-  lab's overlay and `prj.conf` (the CAN transceiver standby pin and the
-  transceiver init priority — see the instructor note in §6). Both are
-  drafted as Jira tickets but **not filed**. Two further rough edges are in
-  stock upstream Zephyr rather than Infineon code (`can_mcan` not exposing
-  one-shot mode, and the `can_send()` NULL-callback blocking trap) and are
-  recorded as observations only. See
-  `outputs/zephyr/strategy/requirements/psc3-bsp-gaps-jira-tickets/psc3-bsp-gaps-draft.md`.
+The first build is the slow one because nothing in the workspace has been
+compiled for your board yet. Everything after it reuses `build/lab`.
 
----
+A Kconfig change — which is what the Phase 3 role switch is — invalidates
+enough of the tree that it rebuilds most things. That is expected, and it is
+still faster than starting over with `--pristine`.
 
+### Two things the board files do not do for you
+
+The lab's overlay and `prj.conf` work around **two gaps in the board support
+package**: the CAN transceiver standby pin is not modelled, and the
+transceiver's default init priority runs before the GPIO port it depends on.
+Both are described where they bite, in §6. You do not have to do anything
+about either — they are already handled — but they are a fair illustration of
+what a board port looks like before it is finished, and of how you would work
+around one yourself.
+
+Two further rough edges live in upstream Zephyr rather than in Infineon code:
+`can_mcan` does not expose one-shot transmit mode, and `can_send()` with a
+`NULL` callback blocks in a way that is easy to walk into (see §6).
 ## 11. Running the lab on KIT_PSC3M5_CC2
 
 The lab is written for KIT_PSC3M5_EVK. Every tier also carries a
@@ -687,8 +702,8 @@ work are identical** — only the devicetree names in Touchpoint 1 differ.
 Build command — substitute the board only:
 
 ```
-west build -b kit_psc3m5_cc2 -p always -d build_command \
-    -s <repo>/labs/can-lab-advanced -- \
+west build -b kit_psc3m5_cc2 -d build/lab \
+    -s devcon-training-2026/labs/can-lab-<tier> -- \
     -DEXTRA_CONF_FILE=conf/role_command.conf
 ```
 
@@ -704,7 +719,7 @@ west build -b kit_psc3m5_cc2 -p always -d build_command \
 | ADC channel | 12 (on-board potentiometer) | 12 (POT1) |
 
 Because the CC2 needs no transceiver-standby node, its Touchpoint 1 is
-slightly *shorter* than the EVK's — the whole §6 instructor note about
+slightly *shorter* than the EVK's — the whole §6 note about
 releasing STB does not apply. The overlay says so inline. The CC2 image is
 also about 1 KB smaller across every tier, which is that driver not being
 built.
@@ -720,36 +735,13 @@ The CC2 has no PWM-capable route to an on-board user LED (the user LEDs sit on
 P9.4/P9.5, which select only SCB0 SPI), so the CC2 always uses the software
 PWM path. The `-DLED_TRIGMUX=y` hardware-PWM variant in §8 is EVK-only.
 
-### Validation status
+### Two things specific to this board
 
-| | Status |
-|---|---|
-| All 4 tiers, both roles, build clean for `kit_psc3m5_cc2` | ✅ |
-| Steps 1+2 checkpoint builds byte-identical between `advanced` and `beginner` | ✅ |
-| `advanced`/`beginner` correctly refuse to build before Step 1 | ✅ |
-| Potentiometer read (ADC ch12 / POT1) on hardware | ✅ full sweep, 0-255 |
-| Hardware PWM output on P9.0 on hardware | ✅ via LED harness on X19 |
-| Two-board CAN link on hardware | ✅ command 255 → telemetry 255 |
-| `west flash` programs and starts the board | ✅ both roles, recovered a blank board |
-
-**Validated on two physical CC2 boards, 2026-10-02.** The full chain works end to
-end: turning the potentiometer on the command node changes the brightness on the
-telemetry node across the CAN bus. Attendees use `west flash` throughout; no
-manual programming steps are required.
-
-One setup item an instructor must confirm before running this on CC2:
-
-> **The workspace must point at ModusToolbox OpenOCD.** KIT_PSC3M5_CC2 flashes
-> through the `openocd` runner, and the Zephyr SDK's bundled OpenOCD does not
-> ship a PSC3 target. Set this once per workspace:
->
-> ```
-> west config build.cmake-args -- "-DOPENOCD=<progtools>/openocd/bin/openocd.exe -DOPENOCD_DEFAULT_PATH=<progtools>/openocd/scripts"
-> ```
->
-> This mirrors how Infineon's own Zephyr workspaces are configured. If it is
-> missing, `west flash` stops with "required program ... not found" before
-> touching the board, so it fails safe.
-
+**Your flash configuration matters here.** KIT_PSC3M5_CC2 programs through the
+`openocd` runner, and the Zephyr SDK''s bundled OpenOCD does not ship a PSC3
+target — the ModusToolbox™ Programming Tools one does. That is the
+`west config build.cmake-args` line you checked in §3. If it is missing,
+`west flash` stops with "required program ... not found" *before* touching the
+board, so it fails safe rather than leaving you with a half-programmed part.
 The potentiometer turns **backwards** on this board — fully clockwise is 0%, fully
 anticlockwise is 100%. That is expected, not a fault.

@@ -107,8 +107,21 @@ the display lab, not only the Helium and GPU ones -- see that lab's README.
 
 Each lab has its own README with build commands and board target strings. Both
 `west build` and `west flash` take `-d <build directory>`, so `west flash -d
-build/e84` flashes whatever `west build -d build/e84` produced. The
-classroom-facing lab guides are under `docs/`.
+build/lab` flashes whatever `west build -d build/lab` produced.
+
+## Classroom guides
+
+| Guide | Session | Path |
+|---|---|---|
+| Getting Started with Zephyr on PSOC™ | 1 — intro, all attendees | `docs/psoc-zephyr-setup.md` |
+| PSOC™ Control — Command & Telemetry over CAN | 2 — advanced | `docs/psoc-control-can-lab.md` |
+| …instructor companion | | `docs/psoc-control-can-lab-instructor.md` |
+| PSOC™ Edge — A Touch Dashboard with LVGL | 3 — advanced | `docs/psoc-edge-lvgl-lab.md` |
+| …instructor companion | | `docs/psoc-edge-lvgl-lab-instructor.md` |
+
+Both advanced labs are self-contained and assume only the intro session. The
+two instructor companions are published alongside their lab guides rather than
+held back.
 
 ## Limitations
 
