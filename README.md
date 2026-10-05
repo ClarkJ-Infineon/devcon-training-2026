@@ -9,8 +9,8 @@ project list on top of `ClarkJ-Infineon/zephyr`, branch `devcon-training-2026`
 
 ```
 pip install west
-west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026
-cd devcon-training-2026
+west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026 devcon-ws
+cd devcon-ws
 west update --narrow
 ```
 
@@ -106,9 +106,10 @@ the display lab, not only the Helium and GPU ones -- see that lab's README.
 | PSOC™ Edge E84 Touch UI dashboard (3 tiers) | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-dashboard-{cheat,beginner,advanced}` |
 | PSOC™ Edge E84 Display / LVGL smoke test | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-display-lab` |
 
-Each lab has its own README with build commands and board target strings.
-Flash with `west flash` from the lab directory. The classroom-facing lab
-guides are under `docs/`.
+Each lab has its own README with build commands and board target strings. Both
+`west build` and `west flash` take `-d <build directory>`, so `west flash -d
+build/e84` flashes whatever `west build -d build/e84` produced. The
+classroom-facing lab guides are under `docs/`.
 
 ## Limitations
 

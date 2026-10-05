@@ -76,20 +76,36 @@ Step 1 is the lab's thesis in miniature.
 
 > ⚠️ **Item 1 is not optional.** A clean sysbuild of this application takes
 > 8–9 minutes on a typical Windows laptop. Three of them inside the session
-> would consume more than a third of the hour. The prerequisite script you were
-> sent does exactly one clean build so that every build in this room is an
+> would consume more than a third of the hour. The setup steps you were sent
+> do exactly one clean build so that every build in this room is an
 > incremental one.
 
+If you have not run them yet, this is the whole prerequisite — six commands,
+once, before the session:
+
+```
+pip install west
+west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026 devcon-ws
+cd devcon-ws
+west update --narrow
+west patch apply
+west build --sysbuild -b kit_pse84_eval/pse846gps2dbzc4a/m55 -d build/e84 -s devcon-training-2026/labs/e84-dashboard-cheat
+```
+
+That last line is the **only** time you type the board target. The build
+directory remembers both it and `--sysbuild`, so every build in this room is
+just `west build -d build/e84`.
+
 1. **You have already built the application once.** The quickest proof is to
-   build again — if the prerequisite ran, this returns in seconds rather than
-   minutes:
+   build again — it should return in seconds:
 
 ```
-   west build -d build/e84 --sysbuild -b kit_pse84_eval/pse846gps2dbzc4a/m55
+   west build -d build/e84
 ```
 
-   If it starts compiling hundreds of files, your prerequisite build did not
-   happen. Say so now.
+   If it stops immediately with `source directory "." does not contain a
+   CMakeLists.txt`, there is no build directory and your prerequisite build
+   did not happen. Say so now.
 
 2. **Your board enumerates.** One USB cable to the KitProg3 connector. Check
    Device Manager for a COM port, and note the number — you will need it.
@@ -196,10 +212,14 @@ width as a fraction of that period.
 #### ✅ Build + flash #1 (6 min)
 
 ```
-west build -d build/e84 --sysbuild -b kit_pse84_eval/pse846gps2dbzc4a/m55
+west build -d build/e84
 ```
 
-Then flash with the script you were given.
+Then flash:
+
+```
+west flash -d build/e84
+```
 
 > **Expect this to take about four and a half minutes, and know why.** You
 > changed `prj.conf`, and a Kconfig change decides *what gets compiled* — so
@@ -508,7 +528,7 @@ Two more worth knowing, which *did* produce errors:
 | You want | Go to |
 | --- | --- |
 | What properties a devicetree node accepts | `zephyr/dts/bindings/` — find the `compatible` string |
-| What a Kconfig symbol does and depends on | `west build -t menuconfig`, then `/` to search |
+| What a Kconfig symbol does and depends on | `west build -d build/e84 -t menuconfig`, then `/` to search |
 | What your build actually enabled | `build/e84/zephyr/.config` |
 | What devicetree actually produced | `build/e84/zephyr/include/generated/zephyr/devicetree_generated.h` |
 | LVGL widget APIs | <https://docs.lvgl.io/master/> |
