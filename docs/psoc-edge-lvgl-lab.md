@@ -7,37 +7,30 @@
 | **Duration** | 60 minutes |
 | **Prerequisite** | One clean build of the lab application already completed — see §3 |
 | **You will touch** | Devicetree, Kconfig, an out-of-tree module, and application code |
-| **Status** | Hardware-validated end to end; see §10 |
+| **Status** | Hardware-validated end to end on KIT_PSE84_EVAL |
 
 ---
 
-## 1. Instructor framing (read this to the room before starting)
+## 1. Why this lab is shaped the way it is
 
-> You have all run a Zephyr sample before. Running a sample teaches you that
-> Zephyr works. It does not teach you how a Zephyr application is actually
-> assembled, because the sample has already made every decision for you.
->
-> This hour is about the three places those decisions live. Devicetree says
-> what hardware exists. Kconfig says what software gets built. Application
-> code says what any of it is for. The thing that catches people — and the
-> reason this lab is shaped the way it is — is that **all three have to agree,
-> and when they disagree the board usually says nothing at all.**
->
-> You are going to make them disagree. Several times. That is the lab. Each
-> time, the question to ask is not "what did I type wrong" but "which of the
-> three layers does not know about the other two."
->
-> There are three checkpoints. At each one you build, flash, and get something
-> you can see or hear. If you fall behind, there is a complete working copy of
-> the application you can take any step from, and no, that is not cheating —
-> there is a whole tier named after it.
+You have all run a Zephyr sample before. Running a sample teaches you that
+Zephyr works. It does not teach you how a Zephyr application is actually
+assembled, because the sample has already made every decision for you.
 
-**Instructor note.** The single most valuable thing you can do in this hour is
-*not* rescue people quickly. Eight of the ten defects found while building this
-application presented as silence — no error, no log line, nothing on the panel.
-That is the actual experience of bringing up an embedded application, and
-thirty seconds of letting someone sit with a dark LED is worth more than the
-answer. §11 has the full catalogue; use it to steer, not to solve.
+This hour is about the three places those decisions live. **Devicetree** says
+what hardware exists. **Kconfig** says what software gets built. **Application
+code** says what any of it is for. The thing that catches people — and the
+reason this lab is shaped the way it is — is that all three have to agree, and
+when they disagree the board usually says nothing at all.
+
+You are going to make them disagree. Several times. That is the lab. Each time,
+the question to ask is not "what did I type wrong" but "which of the three
+layers does not know about the other two."
+
+There are three checkpoints. At each one you build, flash, and get something
+you can see or hear. If you fall behind, there is a complete working copy of
+the application you can take any step from — and no, that is not cheating.
+There is a whole tier named after it.
 
 ---
 
@@ -394,11 +387,6 @@ This is the single most instructive failure in the whole application, because
 every layer reports success. The `drive-push-pull` property in the pinctrl
 block is the entire fix.
 
-> **Instructor:** these two are the best material in the lab for the wrap-up.
-> The lesson is not the two properties — nobody will remember them. The lesson
-> is that *on embedded, a layer reporting success means that layer succeeded,
-> and nothing more than that.*
-
 ---
 
 ## 9. The three application trees — and picking your tier
@@ -428,29 +416,13 @@ contains the answer); check §11 for your symptom; open the same file in
 
 ---
 
-## 10. Hardware validation status
-
-Everything in this guide has been run on real hardware on a KIT_PSE84_EVAL.
-
-| Area | Status |
-| --- | --- |
-| Display — 4.3" MIPI-DSI panel, RGB565, double-buffered | ✅ Validated |
-| Touch — FT5406 capacitive controller | ✅ Validated |
-| LEDs — three channels of hardware PWM | ✅ Validated, silkscreen mapping confirmed |
-| IMU — BMI270 accelerometer, pitch and roll | ✅ Validated, incl. sign convention |
-| Audio — TLV320DAC3100 over I²S | ✅ Validated |
-| Flashing — OpenOCD via KitProg3, QSPI | ✅ Validated |
-| Build — all three tiers, both checkpoints | ✅ Verified on the Linux builder |
-
-The flashed image measures 522,000 B, and the `cheat` tree builds to
-`text=518148 data=3847` — 521,995 B. The guide's tree and the board's image are
-the same code.
+## 10. What to expect from the build
 
 **One pre-existing warning** appears in every build, from the vendor HAL
 (`viv_dc_setting.c:1007`, `-Wdouble-promotion`). It is not yours and it is not
 a problem. The lab's own code builds clean.
 
-**Measured on Windows**, on the machine this lab was developed on:
+**Rebuild times**, measured on Windows:
 
 | What you changed | Rebuild time |
 | --- | ---: |
@@ -460,16 +432,16 @@ a problem. The lab's own code builds clean.
 | **Anything in `prj.conf`** | **4 min 19 s** |
 | Clean build from scratch | 6 min 17 s |
 
-**Pitch sign confirmed on hardware.** Nose-up reads positive; the code does
-`atan2f(-v[1], v[2])`.
+All three checkpoints change `prj.conf`, which is why each one costs about four
+and a half minutes rather than fourteen seconds. Plan what you read while you
+wait — §7 has suggestions.
 
 ---
 
 ## 11. The failure catalogue — eight of these were silent
 
-This is the lab's strongest teaching thread and the honest record of what it
-took to build the application. Ten defects. **Eight produced no error message
-of any kind.**
+Every defect below was hit while building this application. Ten of them.
+**Eight produced no error message of any kind.**
 
 | Symptom | Actual cause | Layer |
 | --- | --- | --- |
@@ -511,4 +483,3 @@ Two more worth knowing, which *did* produce errors:
 | What devicetree actually produced | `build/e84/zephyr/include/generated/zephyr/devicetree_generated.h` |
 | LVGL widget APIs | <https://docs.lvgl.io/master/> |
 | Zephyr PWM API | <https://docs.zephyrproject.org/latest/hardware/peripherals/pwm.html> |
-
