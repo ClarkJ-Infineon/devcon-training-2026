@@ -1,179 +1,237 @@
-# PSOC™ and Zephyr — Setting Up Your Workspace
+# Getting Started with Zephyr on PSOC™
 ### Session 1 Guide (DevCon FAE Training)
 
 |  |  |
 | --- | --- |
 | **Applies to** | Every attendee — PSOC™ Edge, PSOC™ Control and PSOC™ 4100T Plus |
-| **Duration** | 60 minutes |
-| **Prerequisite** | None. This is the one you start with. |
+| **Duration** | 2 hours, mostly presentation |
+| **Before you arrive** | Run the prework installer — see §2 |
 | **You will leave with** | A working Zephyr workspace and your own board blinking |
 
 ---
 
 ## 1. What this session is for
 
-The advanced sessions later this week assume you already have a working Zephyr
-workspace. Building one means a 2.2 GB download and a handful of one-time
-installs. Neither of those belongs in an hour where you are supposed to be
-learning devicetree — and neither is interesting enough to spend that hour on.
+Most of this session is a presentation: what Zephyr is, how it is put together,
+and why it looks the way it does. The hands-on part is smaller, but it has a
+hard deadline — the advanced sessions later this week assume you walk in with a
+working workspace, and there is no time in those hours to build one.
 
-So we do it now, together, in a room where somebody can look at your screen.
+There is one scheduling fact that shapes everything below. **Setting up a
+Zephyr workspace means downloading about 3.7 GB**, and no amount of cleverness
+makes that instant. So you start the download in the first few minutes, leave
+it running while the presentation happens, and come back to it.
+
+**Do not wait to be told to start.** §3 is the first thing you do when you sit
+down.
 
 You leave with three things:
 
-1. **west installed, and a Zephyr SDK your builds can find.**
-2. **A workspace** holding the training fork of Zephyr and every lab
+1. **A workspace** holding the training fork of Zephyr and every lab
    application you will need this week.
+2. **A toolchain** your builds can find, and a programmer that can reach your
+   board.
 3. **One blinky, built by you, flashed by you, running on your own board.**
 
-That third one is the only proof that matters. The first two can look fine and
-still be wrong; a blinking LED cannot.
-
-> **If you only read one thing:** do not skip §7. Everything before it is
-> installation, and installation that has never compiled anything is a guess.
+That third one is the only proof that matters. The first two can look perfectly
+healthy and still be wrong; a blinking LED cannot.
 
 ---
 
-## 2. What you need
+## 2. Before you arrive
 
-| | |
-| --- | --- |
-| **Laptop** | Windows 10 or 11, with permission to install software |
-| **Free disk space** | 5 GB — 2.2 GB for the workspace, the rest for build output |
-| **Hardware** | The kit you were issued, plus its USB cable |
-| **Network** | See the note below |
+### The prework installer
 
-**On the network.** The workspace download is the single biggest thing that
-happens this hour, and conference WiFi is the single biggest reason it fails.
-If you have a wired connection or a phone hotspot, prefer it. The `--narrow`
-flag in §5 exists specifically to make this download as small as it can be.
+Zephyr needs eight command-line tools on Windows. Installing them by hand is
+tedious and several of the usual routes do not work on a managed laptop, so
+there is a script:
+
+**`https://gitlab.intra.infineon.com/JarvisC/zephyr-windows-training-prereqs`**
+
+Download or clone it, then from a **regular, non-admin** PowerShell window:
+
+```
+powershell -ExecutionPolicy Bypass -File .\setup-zephyr-windows-deps.ps1
+```
+
+Close and reopen your terminal when it finishes. Everything it installs goes
+into your user profile — no admin rights, no registry changes.
+
+**You are done when the verification table shows eight `[OK]` lines:**
+
+```
+==> Verifying installed tools
+  [OK] cmake    cmake version 4.4.2
+  [OK] ninja    1.13.2
+  [OK] python   Python 3.12.10
+  [OK] git      git version 2.55.0.windows.5
+  [OK] wget     GNU Wget 1.21.4 built on mingw32.
+  [OK] 7z
+  [OK] gperf    GNU gperf 3.3
+  [OK] dtc      Version: DTC 1.7.2
+```
+
+If any line says `[MISSING]`, reopen your terminal and run the script once more
+— it skips what is already installed and retries only what is not. The repo's
+README covers the handful of things that can go wrong; work through it before
+the session rather than during it.
+
+### ModusToolbox™ Programming Tools
+
+You also need **ModusToolbox™ Programming Tools 1.9 or later** installed. This
+is a separate install and the script above does not provide it.
+
+This is not optional, and it is worth understanding why. Zephyr flashes these
+boards with OpenOCD. The copy of OpenOCD that ships with the Zephyr toolchain
+is the generic upstream build — it knows about PSOC™ 4 and PSOC™ 6, but it has
+no target support for PSOC™ Control or PSOC™ Edge, and no KitProg3 support
+either. Infineon's build does. Without it, `west flash` cannot reach your
+board at all.
+
+> **Which boards does this affect?** All of them. Every board used this week
+> flashes through OpenOCD.
 
 ---
 
-## 3. One-time tool installs
+## 3. First thing in the room: start the download
 
-You need Git, Python, CMake, Ninja and 7-Zip. If you have been doing embedded
-work on this laptop you probably have most of them already.
+Do this before the presentation starts. It runs unattended, and it is the long
+pole.
 
-```
-winget install Git.Git
-winget install Python.Python.3.12
-winget install Kitware.CMake
-winget install Ninja-build.Ninja
-winget install 7zip.7zip
-```
-
-**Close and reopen your terminal afterwards.** Installers add directories to
-`PATH`, and a terminal that was already open will not see them. This is the
-most common reason the next command appears to fail.
-
-Then install west itself:
+The prework script installed Zephyr's dependencies but not **west**, Zephyr's
+own command-line tool. Install it now:
 
 ```
 pip install west
 ```
 
-Check all of it at once:
-
-```
-git --version
-cmake --version
-ninja --version
-west --version
-```
-
-Four version numbers means you are done with this section. Anything reporting
-*"not recognized as an internal or external command"* is a `PATH` problem —
-reopen the terminal first, and if it persists, say so now.
-
----
-
-## 4. Install and register the Zephyr SDK
-
-The SDK is the cross-compiler — the thing that turns your C into ARM code.
-Download **Zephyr SDK 1.0.1** for Windows from the
-[sdk-ng releases page](https://github.com/zephyrproject-rtos/sdk-ng/releases)
-and extract it into your home directory, so you end up with:
-
-```
-C:\Users\<you>\zephyr-sdk-1.0.1
-```
-
-Then run its setup script **once**:
-
-```
-cd %USERPROFILE%\zephyr-sdk-1.0.1
-setup.cmd /t arm-zephyr-eabi /c
-```
-
-Two flags, and both matter:
-
-- **`/t arm-zephyr-eabi`** installs the ARM toolchain. Every board in this
-  week's training is a Cortex-M part, so this is the only one you need. If the
-  bundle you downloaded already contains it, this is a no-op.
-- **`/c`** registers the SDK as a CMake package. This is the one that saves you
-  grief: once registered, **every Zephyr build on this machine finds the
-  toolchain by itself**, in any terminal, forever. Without it you would have to
-  set `ZEPHYR_SDK_INSTALL_DIR` by hand in every new shell — and the day you
-  forget, the build fails with an error that does not mention the SDK at all.
-
-A successful run ends with:
-
-```
-Registering Zephyr SDK CMake package ...
-Zephyr-sdk (C:/Users/<you>/zephyr-sdk-1.0.1/cmake)
-has been added to the user package registry
-All done.
-```
-
-> If `setup.cmd` stops immediately saying it requires `cmake` or `7z`, go back
-> to §3. Those are the only two external programs it checks for.
-
----
-
-## 5. Create the workspace
-
-This is the download. Four commands, run from wherever you keep your projects:
+Then, from wherever you keep your projects:
 
 ```
 west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026 devcon-ws
 cd devcon-ws
 west update --narrow
-west patch apply
 ```
-
-What each one actually does:
 
 | Command | What happens |
 | --- | --- |
-| `west init -m <url> devcon-ws` | Creates a `devcon-ws` folder and fetches **only the manifest** — a small file listing which repositories this training needs and exactly which commit of each. Seconds, not minutes. |
-| `west update --narrow` | Fetches those repositories. This is the 2.2 GB, and the part that takes a while. |
-| `west patch apply` | Applies three small fixes to LVGL that the graphics lab depends on. |
+| `west init -m <url> devcon-ws` | Creates a `devcon-ws` folder and fetches **only the manifest** — a small file naming which repositories this training needs and exactly which commit of each. Seconds, not minutes. |
+| `west update --narrow` | Fetches those repositories. **This is the 2.2 GB.** Leave it running. |
 
 **`--narrow` is not optional advice.** Without it, west fetches every branch
-and every tag of every repository rather than just the one commit the manifest
+and every tag of every repository instead of just the one commit the manifest
 pins. It is the difference between a download that finishes during this session
 and one that does not.
 
-**`west patch apply` prints very little, and that is correct.** A quiet run
-means the patches applied cleanly. If it reports a failure, flag it now — the
-graphics lab will not build without it, and otherwise you will not find that
-out until the advanced session.
+Once `west update` is running, **leave that window alone and go and listen.**
+Nothing else in this guide can proceed until it finishes, and watching it will
+not speed it up.
 
-### What you just downloaded, and why it is only 2.2 GB
+> **If it fails partway through**, just run `west update --narrow` again. It
+> resumes rather than starting over, so a dropped connection costs you only
+> what was in flight.
 
-Upstream Zephyr's default manifest pulls in every vendor's hardware support —
-ST, NXP, Nordic, Espressif, all of it — because upstream has no way to ask for
-one vendor's worth. Downloading all of that would be roughly 7.9 GB, and you
-would use none of it this week.
+### Why it is only 2.2 GB
 
-The manifest you just used lists its projects explicitly instead: the training
-fork of Zephyr, Infineon's HAL, ARM's CMSIS headers, and LVGL for the graphics
-lab. Nothing else. That is the **2.2 GB** on your disk, against **7.9 GB** for
-the default — a reduction of roughly **70%**, almost all of it saved on this
-conference's WiFi.
+Upstream Zephyr's default configuration pulls in every vendor's hardware
+support — ST, NXP, Nordic, Espressif, all of it — because upstream has no way
+to ask for one vendor's worth. That is roughly 7.9 GB, and you would use none
+of it this week.
 
-### What is in the folder
+The manifest you just used names its projects explicitly instead: the training
+fork of Zephyr, Infineon's hardware abstraction layer, ARM's CMSIS headers, and
+LVGL for the graphics lab. Nothing else. **2.2 GB instead of 7.9 GB** — a
+reduction of roughly 70%, almost all of it saved on this room's WiFi.
+
+---
+
+## 4. When the download finishes: install the toolchain
+
+You now have Zephyr's source. You do not yet have a compiler.
+
+The **Zephyr SDK** is that compiler. It is *not* part of the manifest you just
+downloaded and it is not something Infineon provides — it is the Zephyr
+project's own cross-toolchain, and it is a second download of about 1.5 GB.
+
+Run this from inside `devcon-ws`:
+
+```
+west sdk install -t arm-zephyr-eabi
+```
+
+That one command does four things worth knowing about:
+
+- **Picks the right version by itself.** It reads the SDK version this fork of
+  Zephyr was built against and installs exactly that. No version matching by
+  hand, and no chance of installing one that almost works.
+- **Downloads only the ARM toolchain.** `-t arm-zephyr-eabi` is doing real
+  work here. Every board this week is a Cortex-M part; without that flag you
+  would download toolchains for a dozen architectures you will never compile
+  for.
+- **Installs the host tools**, including the generic OpenOCD. Leave this
+  alone — it costs about half the download, but skipping it causes problems
+  that are much harder to diagnose than they are to avoid.
+- **Registers itself**, so that **every Zephyr build on this machine finds the
+  toolchain by itself**, in any terminal, from now on. There is no environment
+  variable to set and nothing to remember.
+
+> **Why this could not have been started earlier.** `west sdk` is a command
+> that Zephyr itself provides, so west does not know it exists until the
+> Zephyr repository is on your disk. Before `west update` finishes, the
+> command simply is not there:
+>
+> ```
+> west: unknown command "sdk"
+> ```
+>
+> That is why the two downloads are sequential rather than parallel, and why
+> §3 has to start the moment you sit down.
+
+Check it landed:
+
+```
+west sdk list
+```
+
+You want to see version `1.0.1`, a path, `hosttools: installed`, and
+`arm-zephyr-eabi` under the installed toolchains.
+
+---
+
+## 5. Finish the workspace
+
+Two short commands, both still from inside `devcon-ws`.
+
+**First, apply the graphics patches:**
+
+```
+west patch apply
+```
+
+This applies three small fixes to LVGL that the graphics lab depends on. It
+prints very little, and a quiet run means they applied cleanly. If it reports a
+failure, flag it now — otherwise the first person to find out will be an Edge
+attendee on the day of their lab.
+
+**Second, point Zephyr at Infineon's OpenOCD:**
+
+```
+west config build.cmake-args -- "-DOPENOCD=C:/Infineon/Tools/ModusToolboxProgtools-1.9/openocd/bin/openocd.exe -DOPENOCD_DEFAULT_PATH=C:/Infineon/Tools/ModusToolboxProgtools-1.9/openocd/scripts"
+```
+
+This is the §2 point made concrete: it tells your builds to flash with
+Infineon's OpenOCD rather than the generic one the SDK installed. Adjust the
+path if you installed the Programming Tools somewhere else, and note the
+**forward slashes** — CMake wants them, even on Windows.
+
+It is a workspace setting, so you type it once and it applies to every build
+in `devcon-ws` for the rest of the week.
+
+> **If you skip this**, builds still succeed and `west flash` fails before it
+> touches the board. That is the good outcome: it fails safely rather than
+> leaving you with a half-programmed device.
+
+### What you now have
 
 ```
 devcon-ws/
@@ -190,30 +248,28 @@ machinery.
 
 ---
 
-## 6. Find your board
+## 6. Your board
 
 One USB cable, into the **KitProg3** connector on your kit — not the other USB
 connector, which is a device port and will not program anything.
 
-Then open Device Manager and look under **Ports (COM & LPT)**. You want a new
-COM port that was not there before you plugged in. **Write the number down.**
-You will need it in every session this week, and it is different on every
-laptop.
+Open Device Manager and look under **Ports (COM & LPT)** for a port that was
+not there before you plugged in. **Write the number down.** You will need it
+in your advanced session, and it is different on every laptop.
 
 Open a serial terminal on that port at **115200 8N1**. PuTTY, TeraTerm and the
 terminal built into your editor are all fine.
 
 > **If no COM port appears**, try a different USB cable before you try anything
 > else. A surprising share of USB cables are charge-only and carry no data
-> lines at all. This costs people more time than any other single thing in this
-> session.
+> lines at all. This costs people more time than anything else in this session.
 
 ---
 
 ## 7. Build and flash blinky
 
-Find your board in this table. It gives you the **board target** — the string
-Zephyr uses to identify your exact hardware.
+Find your kit in this table. The **board target** is the string Zephyr uses to
+identify your exact hardware.
 
 | Your kit | Board target | Clean build |
 | --- | --- | --- |
@@ -221,24 +277,24 @@ Zephyr uses to identify your exact hardware.
 | **KIT_PSC3M5_CC2** (PSOC™ Control C3M5) | `kit_psc3m5_cc2` | about 1½ minutes |
 | **KIT_PSE84_EVAL** (PSOC™ Edge E84) | `kit_pse84_eval/pse846gps2dbzc4a/m55` | about 4 minutes |
 
-From inside `devcon-ws`, build the standard Zephyr blinky sample for your
-board. Substitute your board target for `<board>`:
+From inside `devcon-ws`, build Zephyr's standard blinky sample, substituting
+your board target for `<board>`:
 
 ```
 west build -b <board> -d build/blinky -s zephyr/samples/basic/blinky
 ```
 
 **PSOC™ Edge attendees — you need one extra flag.** The E84 has two processor
-cores, and the one you are targeting is started by the other one. Zephyr builds
-both images together, and that needs `--sysbuild`:
+cores, and the one you are targeting is started by the other one. Zephyr has to
+build both images together, which is what `--sysbuild` asks for:
 
 ```
 west build --sysbuild -b kit_pse84_eval/pse846gps2dbzc4a/m55 -d build/blinky -s zephyr/samples/basic/blinky
 ```
 
-Without `--sysbuild` the build still *succeeds*, which is the trap — it just
+Leave `--sysbuild` out and the build still *succeeds* — that is the trap. It
 produces an image with nothing to start it, and the board sits there doing
-nothing. Remember this; it comes back in the advanced session.
+nothing at all. Remember this one; it comes back in your advanced session.
 
 A successful build ends with a memory report:
 
@@ -254,14 +310,14 @@ Now flash it:
 west flash -d build/blinky
 ```
 
-**An LED on your board should now be blinking.** That is the whole point of the
-session. If it is blinking, you are ready for the rest of the week.
+**An LED on your board should now be blinking.** That is the finish line for
+this session.
 
-> **Why blinky and not something more interesting?** Because it is the smallest
-> program that proves the entire chain — toolchain, board definition, your
-> workspace, the programmer, and the board itself. Every one of those can be
-> broken in a way that looks fine until something tries to use it. Blinky tries
-> to use all of them.
+> **Why blinky, and not something more interesting?** Because it is the
+> smallest program that exercises the entire chain — toolchain, board
+> definition, workspace, programmer and the board itself. Every one of those
+> can be broken in a way that looks fine until something actually uses it.
+> Blinky uses all of them, which is exactly why it is worth your time.
 
 ---
 
@@ -269,40 +325,40 @@ session. If it is blinking, you are ready for the rest of the week.
 
 | What you see | What it means |
 | --- | --- |
-| `'west' is not recognized` | `pip install west` did not land on `PATH`. Reopen your terminal. If it still fails, try `python -m west` to confirm it installed at all. |
-| `Unable to find a Zephyr SDK` | §4's `/c` registration did not happen, or you registered a different SDK folder than the one you extracted. Re-run `setup.cmd /c`. |
-| `ERROR: board <name> not found` | Usually a typo in the board target — they are long, and the E84 one especially so. Copy it from the table rather than typing it. Otherwise you are running from outside `devcon-ws`. |
-| `CMake Error ... does not contain a CMakeLists.txt` | The `-s` path is wrong, almost always because you are not in `devcon-ws`. Check where you are with `cd`. |
-| Build succeeds, `west flash` fails | A programmer problem, not a build problem. Check the COM port still appears in Device Manager, and that no serial terminal is holding the port open — close your terminal and retry. |
-| Build succeeds, flash succeeds, no LED | On E84, you almost certainly left out `--sysbuild`. Rebuild with it. On other boards, flag it. |
-| `west update` fails partway | Network. Run `west update --narrow` again — it resumes rather than starting over. |
+| `'west' is not recognized` | `pip install west` did not land on `PATH`. Reopen your terminal. If it still fails, `python -m west` will tell you whether it installed at all. |
+| `west: unknown command "sdk"` | `west update` has not finished, or you are not inside `devcon-ws`. The `sdk` command comes from the Zephyr repository itself. |
+| `Unable to find a Zephyr SDK` | `west sdk install` did not complete. Re-run it — it skips what is already downloaded. |
+| `ERROR: board <name> not found` | Usually a typo in the board target. They are long, and the E84 one especially so — copy it from the table rather than typing it. Otherwise you are running from outside `devcon-ws`. |
+| `CMake Error ... does not contain a CMakeLists.txt` | The `-s` path is wrong, almost always because you are not in `devcon-ws`. |
+| Build succeeds, `west flash` cannot find OpenOCD | The §5 `west config` line is missing or its path is wrong. Check the path exists, and that you used forward slashes. |
+| Build succeeds, flash succeeds, no LED | On E84, you almost certainly left out `--sysbuild`. Rebuild with it. On any other board, flag it. |
+| `west update` stops partway | Network. Run `west update --narrow` again; it resumes. |
 
-If you are stuck for more than a few minutes, say so out loud. Everything in
-this session is a prerequisite for everything later in the week, and the worst
-outcome is discovering a broken workspace at the start of your advanced
-session.
+If you are stuck for more than a few minutes, say so out loud. Everything here
+is a prerequisite for everything later in the week, and the worst possible
+outcome is finding out your workspace is broken at the start of your advanced
+session, when there is no time to fix it.
 
 ---
 
 ## 9. What happens next
 
-Later this week you choose **one** advanced session. Both run at the same time,
+Later this week you choose **one** advanced session. They run at the same time,
 so you cannot attend both.
 
 **PSOC™ Control — CAN Command and Telemetry.** Two boards talking to each
 other over CAN. You bring up an ADC channel and a PWM output in devicetree,
-then wire them into a message protocol, and watch one board's knob move the
-other board's LED.
+wire them into a message protocol, and watch one board's potentiometer drive
+the other board's LED.
 
 **PSOC™ Edge — A Touch Dashboard with LVGL.** A touchscreen dashboard on the
 E84's 4.3" panel: colour sliders driving real LED brightness, a live tilt meter
 from the on-board accelerometer, and audio feedback on touch. You work across
 devicetree, Kconfig and application code.
 
-Both sessions start from the workspace you just built. Nothing else is
-installed on the day and no further downloads happen in the room — which is
-exactly why this session exists.
+Both start from the workspace you built today. Nothing further is installed on
+the day and no further downloads happen in the room — which is the entire
+reason this session exists.
 
-You do not need to decide anything else now. Each advanced session hands out
-its own guide and tells you which application directory to build. There is
-nothing to prepare beyond what you have done in this hour.
+There is nothing else to decide or prepare now. Each advanced session hands out
+its own guide and tells you exactly which application directory to build.
