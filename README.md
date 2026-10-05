@@ -104,7 +104,6 @@ the display lab, not only the Helium and GPU ones -- see that lab's README.
 |---|---|---|
 | PSOC™ Control CAN Command & Telemetry (4 tiers) | KIT_PSC3M5_CC2 / KIT_PSC3M5_EVK | `labs/can-lab-{cheat,beginner,advanced,production}` |
 | PSOC™ Edge E84 Touch UI dashboard (3 tiers) | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-dashboard-{cheat,beginner,advanced}` |
-| PSOC™ Edge E84 Display / LVGL smoke test | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-display-lab` |
 
 Each lab has its own README with build commands and board target strings. Both
 `west build` and `west flash` take `-d <build directory>`, so `west flash -d

@@ -199,8 +199,8 @@ driver is never built, nothing binds to the nodes you just enabled, and the
 failure arrives at link time as an undefined reference to a generated symbol
 that names no file and no line.
 
-The skeleton catches this for you with a one-line error. In the field, nothing
-will.
+The starting application catches this for you with a one-line error. In the
+field, nothing will.
 
 #### TODO 1d — code: drive the LED
 **File:** `src/main.c`, in `led_set_percent()`
@@ -335,10 +335,9 @@ Work down the list on your own board:
 | 9 | Release | A second, higher tone |
 | 10 | Tap quickly | Both tones still play — neither is dropped |
 
-Item 10 is worth calling out. An early version lost the release tone on a fast
-tap, because the press tone was still playing and the release was discarded
-rather than queued. Tones are now queued one deep, which is exactly one
-gesture's worth.
+Item 10 is worth calling out. Tones are queued one deep — exactly one gesture's
+worth — so a release tone is never discarded because the press tone is still
+playing.
 
 ---
 
@@ -421,26 +420,6 @@ Step 1+2 checkpoint and requires identical output. The last run produced
 So if you start in `advanced` and decide at Step 3 that you would rather have
 the answers, copy your work across and carry on. Nothing is lost.
 
-### Why there is no fourth tier here
-
-The CAN lab has a fourth tree, `production`, because it demonstrates a
-genuinely different implementation of the same behaviour — hardware trigger-mux
-routing instead of software PWM — which is worth showing after the event.
-
-This lab has no such alternative. `cheat` is already the production
-application: it carries the error handling, the repaint guards and the input
-queue sizing that hardware bring-up demanded. A fourth tree would be a copy of
-the third with a different name on it.
-
-Three tiers is the confirmed shape of this lab (Clark Jarvis, 2026-10-03), not
-an open question. There is exactly one condition that would add a fourth: if
-the dry run shows the lab has to be simplified so far that `cheat` is no longer
-an application worth handing someone as a model, then `cheat` becomes the
-reduced end state and a new `production` tree is added to show what the project
-should look like given more than an hour. That is a reaction to a measured
-timing problem, not a structural choice to make in advance — and it is only
-worth doing if simplification actually costs `cheat` its quality.
-
 ### If you get stuck
 
 In order: re-read the TODO text (it is longer than it looks and usually
@@ -481,9 +460,8 @@ a problem. The lab's own code builds clean.
 | **Anything in `prj.conf`** | **4 min 19 s** |
 | Clean build from scratch | 6 min 17 s |
 
-**Pitch sign confirmed.** Nose-up reads positive. The sign was flipped late in
-bring-up — the code does `atan2f(-v[1], v[2])` — and Clark confirmed the
-current implementation is correct on hardware (2026-10-03).
+**Pitch sign confirmed on hardware.** Nose-up reads positive; the code does
+`atan2f(-v[1], v[2])`.
 
 ---
 
