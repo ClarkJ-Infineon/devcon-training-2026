@@ -15,13 +15,19 @@ Section references below (§3, §7, §11) point into the attendee guide.
 
 | Must be true | How to confirm |
 | --- | --- |
-| Every attendee has completed one clean build **before** the session | §3 of the attendee guide is the check; it takes them 3 minutes |
+| Every attendee has a working workspace from the intro session | §3 of the attendee guide is the check; it takes them 3 minutes |
 | Each bench has a KIT_PSE84_EVAL with the 4.3" panel attached | Panel is MIPI-DSI with capacitive touch |
-| You have flashed a board yourself, in front of them, once | The attendee guide tells them you will have demonstrated this |
+| You have flashed a board yourself, in front of them, once | Sets the target behaviour and removes "is my hardware broken?" as a variable |
 
-The prerequisite build is the single biggest risk to the hour. A clean build
-from scratch costs **6 min 17 s** — if someone arrives without one, they lose a
-tenth of the session before writing a line of code. Chase it beforehand.
+The workspace is the single biggest risk to the hour, and it is not something
+that can be fixed in the room — `west update` alone is a 2.2 GB download.
+Anyone who arrives without one should be paired with a neighbour immediately
+rather than left to catch up.
+
+The in-room check that matters most is the flash configuration. A workspace
+missing the `west config build.cmake-args` line builds perfectly and cannot
+flash, and the attendee will not discover it until build #1 is already done.
+§3 item 2 catches it in ten seconds.
 
 ---
 
@@ -54,21 +60,34 @@ tenth of the session before writing a line of code. Chase it beforehand.
 | --- | ---: |
 | Setup verification (§3) | 3 min |
 | Step 1 — sliders drive the LEDs | 13 min |
-| Build + flash #1 | 6 min |
+| **Build + flash #1 — clean build** | **8 min** |
 | Step 2 — steady the tilt meter | 4 min |
 | Build + flash #2 | 6 min |
 | Step 3 — audio feedback | 10 min |
 | Build + flash #3 | 6 min |
 | Verification (§6) | 3 min |
-| **Total** | **51 min** |
+| **Total** | **53 min** |
 
-That leaves roughly nine minutes for the wrap-up and for the hour not going to
+That leaves about seven minutes for the wrap-up and for the hour not going to
 plan. It will not go to plan.
 
+**Build #1 is the long one and it is the only clean build.** It costs
+6 min 53 s plus flash, because nothing has been compiled yet — Zephyr, the
+vendor HAL, LVGL, and two images rather than one. Builds #2 and #3 are
+incremental at about 4 min 19 s each.
+
+Nothing is pre-built before the session, deliberately. The two editable tiers
+stop at a compile-time `#error` until Step 1 is finished, so the only tree that
+*can* be built in advance is `cheat` — and a build directory warmed with
+`cheat` is tied to `cheat`, so an attendee editing their own tier would rebuild
+the finished application and flash a working dashboard that contains none of
+their work. In a lab whose thesis is that a layer reporting success proves only
+that that layer succeeded, that is not a trap worth setting.
+
 **The three builds are the pacing mechanism, not dead air.** Every checkpoint
-changes `prj.conf`, which is the expensive case — about 4 min 19 s each. Use
-that time: §7 of the attendee guide lists what to do with it, and the builds
-are where you run the discussion.
+changes `prj.conf`, which is the expensive case. Use that time: §7 of the
+attendee guide lists what to do with it, and the builds are where you run the
+discussion.
 
 ---
 

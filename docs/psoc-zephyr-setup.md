@@ -78,18 +78,23 @@ the session rather than during it.
 
 ### ModusToolbox™ Programming Tools
 
-You also need **ModusToolbox™ Programming Tools 1.9 or later** installed. This
-is a separate install and the script above does not provide it.
+You already have these — **Programming Tools 1.9** is a prerequisite for the
+ModusToolbox™ classes at this event, so it is installed on every laptop in the
+room. There is nothing to do here. Confirm it if you like:
 
-This is not optional, and it is worth understanding why. Zephyr flashes these
-boards with OpenOCD. The copy of OpenOCD that ships with the Zephyr toolchain
-is the generic upstream build — it knows about PSOC™ 4 and PSOC™ 6, but it has
-no target support for PSOC™ Control or PSOC™ Edge, and no KitProg3 support
-either. Infineon's build does. Without it, `west flash` cannot reach your
-board at all.
+```
+dir C:\Infineon\Tools\ModusToolboxProgtools-1.9\openocd\bin\openocd.exe
+```
 
-> **Which boards does this affect?** All of them. Every board used this week
-> flashes through OpenOCD.
+It is worth knowing *why* Zephyr needs it, because this catches people.
+Zephyr flashes these boards with OpenOCD, and the copy of OpenOCD that comes
+with the Zephyr toolchain is the generic upstream build — it knows about
+PSOC™ 4 and PSOC™ 6, but it has no target support for PSOC™ Control or
+PSOC™ Edge and no KitProg3 support either. Infineon's build has all of it.
+
+You point Zephyr at it with one command, in §5. Without that, `west flash`
+cannot reach your board at all — and this applies to **every** board used this
+week, because they all flash through OpenOCD.
 
 ---
 
@@ -220,9 +225,9 @@ west config build.cmake-args -- "-DOPENOCD=C:/Infineon/Tools/ModusToolboxProgtoo
 ```
 
 This is the §2 point made concrete: it tells your builds to flash with
-Infineon's OpenOCD rather than the generic one the SDK installed. Adjust the
-path if you installed the Programming Tools somewhere else, and note the
-**forward slashes** — CMake wants them, even on Windows.
+Infineon's OpenOCD rather than the generic one the SDK installed. The path is
+where the Programming Tools install by default, so it should be right as
+typed — note the **forward slashes**, which CMake wants even on Windows.
 
 It is a workspace setting, so you type it once and it applies to every build
 in `devcon-ws` for the rest of the week.

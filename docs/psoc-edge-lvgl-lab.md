@@ -5,7 +5,7 @@
 | --- | --- |
 | **Board** | KIT_PSE84_EVAL (PSOC™ Edge E84), 4.3" MIPI-DSI panel with capacitive touch |
 | **Duration** | 60 minutes |
-| **Prerequisite** | One clean build of the lab application already completed — see §3 |
+| **Prerequisite** | A working workspace from the intro session — see §3 |
 | **You will touch** | Devicetree, Kconfig, an out-of-tree module, and application code |
 | **Status** | Hardware-validated end to end on KIT_PSE84_EVAL |
 
@@ -67,49 +67,44 @@ Step 1 is the lab's thesis in miniature.
 
 ## 3. Setup verification (3 min)
 
-> ⚠️ **Item 1 is not optional.** A clean sysbuild of this application takes
-> 8–9 minutes on a typical Windows laptop. Three of them inside the session
-> would consume more than a third of the hour. The setup steps you were sent
-> do exactly one clean build so that every build in this room is an
-> incremental one.
+Everything here was done in the intro session. This is a check, not a setup —
+but do it now rather than at minute 29, because none of it is fixable mid-lab.
 
-If you have not run them yet, this is the whole prerequisite — six commands,
-once, before the session:
+1. **Your workspace exists and your toolchain is registered.** From inside
+   `devcon-ws`:
 
 ```
-pip install west
-west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026 devcon-ws
-cd devcon-ws
-west update --narrow
-west patch apply
-west build --sysbuild -b kit_pse84_eval/pse846gps2dbzc4a/m55 -d build/e84 -s devcon-training-2026/labs/e84-dashboard-cheat
+   west sdk list
 ```
 
-That last line is the **only** time you type the board target. The build
-directory remembers both it and `--sysbuild`, so every build in this room is
-just `west build -d build/e84`.
+   You want version `1.0.1` with `arm-zephyr-eabi` listed. If the command is
+   not recognised, you are not in `devcon-ws`.
 
-1. **You have already built the application once.** The quickest proof is to
-   build again — it should return in seconds:
+2. **Your flash configuration survived.** Still in `devcon-ws`:
 
 ```
-   west build -d build/e84
+   west config build.cmake-args
 ```
 
-   If it stops immediately with `source directory "." does not contain a
-   CMakeLists.txt`, there is no build directory and your prerequisite build
-   did not happen. Say so now.
+   This should print a line pointing at the ModusToolbox™ Programming Tools
+   OpenOCD. If it says `build.cmake-args is unset`, re-run the `west config`
+   command from the setup guide now — without it `west flash` cannot reach the
+   board.
 
-2. **Your board enumerates.** One USB cable to the KitProg3 connector. Check
-   Device Manager for a COM port, and note the number — you will need it.
+3. **Your board enumerates.** One USB cable to the KitProg3 connector, and a
+   COM port in Device Manager. Note the number.
 
-3. **Your serial console is open** at **115200 8N1**.
+4. **Your serial console is open** at **115200 8N1**.
 
-4. **You can flash.** The instructor will have demonstrated this once. If your
-   board has never been flashed by you, say so now rather than at minute 29.
+5. **You have flashed this board at least once** — the blinky from the intro
+   session counts, and is the whole reason that session ended with one.
 
-If any of these four fail, pair with a neighbour for the hour. You will still
-get the lab; you will just be driving somebody else's laptop.
+If any of these fail, pair with a neighbour for the hour. You will still get
+the lab; you will just be driving somebody else's laptop.
+
+> **Your first build in this room will be a clean one, and it takes about
+> seven minutes.** That is expected, and it happens once — §5 tells you when.
+> Every build after it is incremental.
 
 ---
 
@@ -142,8 +137,10 @@ silkscreen. The code underneath uses the aliases.
 
 ## 5. The three steps (27 min of editing, plus three builds)
 
-Open your tier's application directory. If you have not picked a tier, read §9
-first — it takes thirty seconds and it changes how much typing you do.
+**Pick your tier now, before you start editing.** §9 explains the three in
+thirty seconds, and the choice matters here because you will name it in build
+#1 — the build directory then remembers it for the rest of the hour. If you
+are unsure, take `beginner`.
 
 Every TODO is numbered `<step><letter>`. The number is the checkpoint, the
 letter is the order within it. Do them in order; several of them depend on the
@@ -202,23 +199,38 @@ One call to `pwm_set_pulse_dt()`. The period already came from devicetree —
 `PWM_DT_SPEC_GET()` captured it at build time — so all you supply is the pulse
 width as a fraction of that period.
 
-#### ✅ Build + flash #1 (6 min)
+#### ✅ Build + flash #1 (7 min)
+
+This is the one build where you type the full command. Substitute your tier —
+`advanced`, `beginner` or `cheat`:
 
 ```
-west build -d build/e84
+west build --sysbuild -b kit_pse84_eval/pse846gps2dbzc4a/m55 -d build/lab -s devcon-training-2026/labs/e84-dashboard-<tier>
 ```
 
 Then flash:
 
 ```
-west flash -d build/e84
+west flash -d build/lab
 ```
 
-> **Expect this to take about four and a half minutes, and know why.** You
-> changed `prj.conf`, and a Kconfig change decides *what gets compiled* — so
-> the Zephyr library build is invalidated and most of it is rebuilt. For
-> comparison, had you changed only `src/main.c` this would have taken 14
-> seconds, and only the overlay, 38.
+**That is the only time you type any of that.** The build directory remembers
+the board target, `--sysbuild` and which tree it was built from, so builds #2
+and #3 are just:
+
+```
+west build -d build/lab
+```
+
+> **Expect about seven minutes, and know why.** This one is building
+> everything from scratch — Zephyr, the vendor HAL, LVGL, and two images
+> rather than one, because the E84's CM55 core is started by a companion CM33
+> image. It happens once.
+>
+> The builds after it are incremental and cost about four and a half minutes
+> each, because every checkpoint in this lab changes `prj.conf`. Had you
+> changed only `src/main.c`, a rebuild would take 14 seconds; only the
+> overlay, 38.
 >
 > That asymmetry is worth carrying out of this room. Configuration changes are
 > expensive; batch them. Code changes are nearly free; iterate on them freely.
@@ -275,7 +287,7 @@ because `BEEPER` depends on them.
 **A Kconfig symbol whose dependencies are unmet is silently dropped, not
 reported.** Setting `CONFIG_BEEPER=y` without those four would produce a build
 with no beeper in it and no message saying why. If a symbol you set does not
-seem to have taken effect, check the generated `build/e84/zephyr/.config` —
+seem to have taken effect, check the generated `build/lab/zephyr/.config` —
 that file is the truth, `prj.conf` is only a request.
 
 #### TODO 3b — code: bring the module up
@@ -397,16 +409,21 @@ block is the entire fix.
 | **`e84-dashboard-advanced`** | The TODOs, with explanation but no answers | You want to write the code |
 | **`e84-dashboard-cheat`** | Nothing — this is the finished application | You are stuck, you want to see the target, or you want a reference afterwards |
 
-### Switching tiers mid-lab is free
+### Moving between tiers mid-lab
 
 **Steps 1 and 2 are byte-identical across `beginner` and `advanced`.** The two
 trees differ only in whether the Step 3 answers are supplied as paste blocks.
 This is enforced, not merely intended: the generator builds both tiers at the
-Step 1+2 checkpoint and requires identical output. The last run produced
-`text=512200 data=3847 bss=1678572` for both.
+Step 1+2 checkpoint and requires identical output.
 
 So if you start in `advanced` and decide at Step 3 that you would rather have
-the answers, copy your work across and carry on. Nothing is lost.
+the answers, you can move. **Copy the answer blocks across into the tree you
+are already building**, rather than switching `-s` to the other directory —
+your build directory is tied to the tree you named in build #1, and pointing it
+somewhere else forces a pristine rebuild you do not have seven minutes for.
+
+The same applies to `cheat`: read from it freely, but copy what you need into
+your own tree.
 
 ### If you get stuck
 
@@ -430,11 +447,12 @@ a problem. The lab's own code builds clean.
 | Application source only | 14 s |
 | Devicetree overlay only | 38 s |
 | **Anything in `prj.conf`** | **4 min 19 s** |
-| Clean build from scratch | 6 min 17 s |
+| Clean build from scratch | 6 min 53 s |
 
-All three checkpoints change `prj.conf`, which is why each one costs about four
-and a half minutes rather than fourteen seconds. Plan what you read while you
-wait — §7 has suggestions.
+Your first build is the clean one. All three checkpoints then change
+`prj.conf`, which is why the two after it cost about four and a half minutes
+rather than fourteen seconds. Plan what you read while you wait — §7 has
+suggestions.
 
 ---
 
@@ -462,7 +480,7 @@ Two more worth knowing, which *did* produce errors:
   actually compile when it is switched off, and that only gets tested if
   somebody switches it off.
 - **A Kconfig symbol with unmet dependencies is dropped in silence.** Not an
-  error. Check `build/e84/zephyr/.config`, never `prj.conf`.
+  error. Check `build/lab/zephyr/.config`, never `prj.conf`.
 
 > **The reusable rule.** Every one of the silent eight was found by comparing a
 > layer's claim against physical reality — a scope on a pin, a register read, a
@@ -478,8 +496,8 @@ Two more worth knowing, which *did* produce errors:
 | You want | Go to |
 | --- | --- |
 | What properties a devicetree node accepts | `zephyr/dts/bindings/` — find the `compatible` string |
-| What a Kconfig symbol does and depends on | `west build -d build/e84 -t menuconfig`, then `/` to search |
-| What your build actually enabled | `build/e84/zephyr/.config` |
-| What devicetree actually produced | `build/e84/zephyr/include/generated/zephyr/devicetree_generated.h` |
+| What a Kconfig symbol does and depends on | `west build -d build/lab -t menuconfig`, then `/` to search |
+| What your build actually enabled | `build/lab/zephyr/.config` |
+| What devicetree actually produced | `build/lab/zephyr/include/generated/zephyr/devicetree_generated.h` |
 | LVGL widget APIs | <https://docs.lvgl.io/master/> |
 | Zephyr PWM API | <https://docs.zephyrproject.org/latest/hardware/peripherals/pwm.html> |
