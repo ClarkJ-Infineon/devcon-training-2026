@@ -20,7 +20,7 @@
  * just a matter of opening a different src/ file.
  *
  * A note on style: this lab deliberately omits return-code checks on calls
- * that cannot realistically fail on a known-good EVK (can_set_bitrate(),
+ * that cannot realistically fail on a known-good board (can_set_bitrate(),
  * can_set_mode(), can_start()), so the code stays readable inside a
  * 60-minute session. The checks that are kept are the ones that catch real
  * mistakes: device_is_ready(), and the can_send() result - which is how you

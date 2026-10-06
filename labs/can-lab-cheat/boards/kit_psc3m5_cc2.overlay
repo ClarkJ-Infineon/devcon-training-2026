@@ -22,18 +22,18 @@
  *
  * CAN is already enabled by default in this board's base devicetree
  * (kit_psc3m5_cc2-common.dtsi enables can1, and `zephyr,canbus` is already
- * chosen). Unlike KIT_PSC3M5_EVK, this board needs no transceiver node at
- * all - see the note at the end of this file, which is worth reading. Your
- * two devicetree touchpoints in this lab are:
+ * chosen). This board also needs no CAN transceiver node at all - see the
+ * note at the end of this file, which is worth reading. Your two devicetree
+ * touchpoints in this lab are:
  *
  *   TODO 1a/1b: enable the onboard potentiometer's ADC channel.
  *   TODO 1c:    enable the PWM output used for the brightness command
  *               signal (pin P9.0, on connector X19).
  *
  * Reference: tests/drivers/adc/adc_api/boards/kit_psc3m5_cc2.overlay in the
- * Zephyr tree shows this board's ADC channels fully enabled, and
- * samples/basic/fade_led/boards/kit_psc3m5_evk.overlay shows the equivalent
- * PWM wiring on the sister board, if you get stuck.
+ * Zephyr tree shows this board's ADC channels fully enabled, and the overlays
+ * under samples/basic/fade_led/boards/ show how a PWM output is wired up on
+ * other boards, if you get stuck.
  *
  * Docs: what an overlay is and why it exists
  *   https://docs.zephyrproject.org/latest/build/dts/intro.html
@@ -142,9 +142,8 @@
 /*
  * Provided for you - not a lab task.
  *
- * tcpwm2_6 sits in peripheral group 5, the same group the KIT_PSC3M5_EVK
- * overlay uses for its tcpwm1_4. The divider is shared with &csg0, which the
- * board dtsi sets to 2.
+ * tcpwm2_6 sits in peripheral group 5. The divider is shared with &csg0,
+ * which the board dtsi sets to 2.
  *
  * 240 divides the 240 MHz peripheral clock to a 1 MHz counter, giving the
  * 1 kHz PWM above exactly 1000 brightness steps.
@@ -175,11 +174,10 @@
  * Provided for you - not a lab task, but worth understanding.
  *
  * There is deliberately no `phys` property on &can1 and no transceiver node
- * anywhere in this file, and that is a real difference from KIT_PSC3M5_EVK
- * rather than an omission.
+ * anywhere in this file. That is a property of this board, not an omission.
  *
- * The CAN front end on this board is galvanically isolated and has one more
- * link in the chain than the EVK:
+ * The CAN front end here is galvanically isolated, so the signal passes
+ * through one more link than it would on a non-isolated board:
  *
  *   P6.3 CAN1_TX --> INA  ==||== OUTA --> TXD --+ TLE9371VSJ +-- CANH
  *   P6.2 CAN1_RX <-- OUTB ==||== INB  <-- RXD --+  STB = GND +-- CANL
@@ -191,10 +189,10 @@
  * there is nothing for software to enable. Adding a can-transceiver-gpio
  * node here would be describing hardware that does not exist.
  *
- * On KIT_PSC3M5_EVK the equivalent STB pin sits on P7.6 with an internal
- * pull-up and nothing releases it, so that board does need a transceiver
- * node - without one it goes bus-off about a millisecond after boot with
- * its error counters still reading zero. Compare the two overlays: this is
- * a good illustration of why devicetree describes the board rather than the
- * chip.
+ * On many other boards the same transceiver part has its STB pin wired to a
+ * GPIO with an internal pull-up and nothing releasing it. Those boards do
+ * need a can-transceiver-gpio node - without one they go bus-off about a
+ * millisecond after boot, with the error counters still reading zero. Same
+ * silicon, same driver, different overlay: this is why devicetree describes
+ * the board rather than the chip.
  */

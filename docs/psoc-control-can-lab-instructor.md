@@ -16,8 +16,8 @@ Section references below (§3, §6, §7, §11) point into the attendee guide.
 | Must be true | How to confirm |
 | --- | --- |
 | Every attendee has a working workspace from the intro session | §3 of the attendee guide is the check; it takes them 3 minutes |
-| Each **pair** has two boards of the same variant | Mixing an EVK and a CC2 across one pair works electrically, but the two partners then read different devicetree names in Touchpoint 1 — avoid it |
-| The CAN harness is made up | Three wires per pair: CANH, CANL, GND, screw terminal to screw terminal |
+| Each **pair** has two KIT_PSC3M5_CC2 boards | Both partners must be on the same board, or they read different devicetree names in Touchpoint 1 |
+| The CAN harness is made up | Three wires per pair: CANH, CANL, GND, CAN connector to CAN connector |
 | You have run the pair yourself, in front of them, once | See §2 below |
 
 The workspace is the single biggest risk to the hour and it cannot be fixed in
@@ -98,33 +98,23 @@ point them at the `Docs:` line rather than at the answer.
 
 ---
 
-## 6. The hardware-PWM variant
+## 6. Known gaps, for your own awareness
 
-`-DLED_TRIGMUX=y` drives the on-board LED from a real TCPWM PWM channel routed
-through the PERI trigger multiplexer, instead of the software PWM path the lab
-uses by default. It is mentioned briefly in attendee §8.
+Both rough edges in this lab are in stock upstream Zephyr rather than in
+Infineon code: `can_mcan` does not expose one-shot transmit mode, and
+`can_send()` with a `NULL` callback blocks in a way that is easy to walk into.
+Attendee §6 explains the second where it bites. Both are recorded as
+observations only.
 
-It is **EVK-only** — the CC2''s user LEDs sit on P9.4/P9.5, which select only
-SCB0 SPI, so there is no PWM-capable route to them.
+This board needs no CAN transceiver node, so the standby-pin and init-priority
+problems that affect some other PSOC Control boards do not arise here. The
+attendee guide uses that contrast in §6 to make the point that devicetree
+describes the board rather than the chip - worth reinforcing out loud if the
+room is engaged, because it is the most transferable idea in the hour.
 
-It changes no touchpoint and no step, and the two fades are visually
-indistinguishable, which is why it is not the default. It is worth having in
-your pocket for the attendee who asks whether the soft-PWM path is a hardware
-limitation. It is not — it is a Zephyr software gap, and this is the proof.
-
----
-
-## 7. Known gaps, for your own awareness
-
-Two **board-support-package gaps** are worked around in the lab''s overlay and
-`prj.conf`: the CAN transceiver standby pin is not modelled upstream, and the
-transceiver''s default init priority runs ahead of the Infineon GPIO driver it
-depends on. Attendee §6 explains both where they bite. Both are drafted as
-Jira tickets but not yet filed.
-
-Two further rough edges are in stock upstream Zephyr rather than Infineon
-code — `can_mcan` not exposing one-shot transmit mode, and the `can_send()`
-NULL-callback blocking trap — and are recorded as observations only.
+The practical failure mode to watch for instead is the flash configuration
+(§1 and §2 above). It is the only setup problem that survives a successful
+build.
 
 Timing has not been rehearsed with a live audience; the 60-minute budget in §3
 above is an estimate built from measured build times, not from a dry run.

@@ -3,7 +3,7 @@
 
 |  |  |
 | --- | --- |
-| **Board** | KIT_PSC3M5_EVK (PSOC™ Control C3M5), two per pair — or KIT_PSC3M5_CC2, see §11 |
+| **Board** | KIT_PSC3M5_CC2 (PSOC™ Control C3M5), two per pair |
 | **Duration** | 60 minutes |
 | **Prerequisite** | A working workspace from the intro session — see §3 |
 | **You will touch** | Devicetree, Kconfig, and application code |
@@ -128,15 +128,18 @@ boards between you either way.
 
 ---
 
-## 4. LED labelling — read this before you debug
+## 4. The two user LEDs
 
-The silkscreen and the devicetree are **off by one**. This confuses people
-every time:
+Both are on port 9 and both are active low. The board labels and the
+devicetree aliases agree, so there is no off-by-one to trip over here:
 
-| Silkscreen | Devicetree alias | Pin | Used in this lab for |
+| Board label | Devicetree alias | Pin | Used in this lab for |
 |---|---|---|---|
-| **LED1** (blue) | `led0` | P8.5 | Brightness / setpoint — this is the one that should track the knob |
-| **LED2** (orange) | `led1` | P8.4 | CAN activity heartbeat — rapid blinking is **normal** |
+| **LED0** | `led0` | P9.4 | Brightness / setpoint — this is the one that should track the knob |
+| **LED1** | `led1` | P9.5 | CAN activity heartbeat — rapid blinking is **normal** |
+
+Neither pin can be driven by hardware PWM — see §8, which is worth reading
+before you wonder why.
 
 ---
 
@@ -156,11 +159,9 @@ differs, which drives which `.c` file gets compiled in.
 
 ### Touchpoint 1 — Devicetree (`can-lab-<tier>/boards/<your-board>.overlay`)
 
-> On KIT_PSC3M5_EVK that file is `boards/kit_psc3m5_evk.overlay`; on
-> KIT_PSC3M5_CC2 it is `boards/kit_psc3m5_cc2.overlay`. The TODO numbering
-> is identical in both — only the peripheral and pin names differ (§11).
-> Edit the one matching the board you are building for; the other is
-> ignored by the build.
+> The file is `boards/kit_psc3m5_cc2.overlay` — named after the board, which
+> is how Zephyr picks it up automatically when you build with
+> `-b kit_psc3m5_cc2`.
 
 CAN is already enabled for you at the board level — nothing to do there.
 Your job is to enable the **ADC** (potentiometer) and **PWM** (command
@@ -174,16 +175,14 @@ output) nodes, all clearly marked `TODO 1a`/`1b`/`1c` in the overlay file:
    (the on-board potentiometer — this pin mapping is fixed by the board,
    you're just telling Zephyr about it).
 4. **TODO 1c:** uncomment the PWM block (enables the hardware PWM
-   peripheral and routes it to the lab's output pin — `&tcpwm1_4` on P4.0,
-   mikroBUS header 1, for the EVK; `&tcpwm2_6` on P9.0 for the CC2) and the
-   `pwmleds` block further up (gives the app a named PWM device to open),
-   plus the `cmd-pwm` alias in `aliases { }`.
+   peripheral and routes it to the lab's output pin, `&tcpwm2_6` on P9.0)
+   and the `pwmleds` block further up (gives the app a named PWM device to
+   open), plus the `cmd-pwm` alias in `aliases { }`.
 
-Stuck? On the EVK, `samples/drivers/adc/adc_dt/boards/kit_psc3m5_evk.overlay`
-and `samples/basic/fade_led/boards/kit_psc3m5_evk.overlay` in the Zephyr tree
-show the same nodes fully enabled. Those samples carry **no CC2 overlay**, so
-on the CC2 use `can-lab-production/boards/kit_psc3m5_cc2.overlay` in this repo
-as the worked reference instead.
+Stuck? `tests/drivers/adc/adc_api/boards/kit_psc3m5_cc2.overlay` in the Zephyr
+tree shows this board's ADC channels fully enabled, and
+`labs/can-lab-production/boards/kit_psc3m5_cc2.overlay` in this repo is the
+complete worked reference for all three TODOs.
 
 ### Touchpoint 2 — Module import (`can-lab-<tier>/prj.conf`)
 
@@ -233,7 +232,7 @@ and 2 but not here. `can_protocol.h` holds the shared constants
 on the wire format.
 
 > **A note on style.** The lab code omits error checks on calls that
-> can't realistically fail on a known-good EVK, to keep each function
+> can't realistically fail on a known-good board, to keep each function
 > short enough to read in one go. Production code should check them.
 > The `can-lab-production` tree (§9) keeps the full error handling and is
 > the version to show a customer.
@@ -287,7 +286,7 @@ is your first build, so it carries the full command — board, build directory
 and source tree. From inside `devcon-ws`:
 
 ```
-west build -b kit_psc3m5_evk -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- -DEXTRA_CONF_FILE=conf/role_command.conf
+west build -b kit_psc3m5_cc2 -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- -DEXTRA_CONF_FILE=conf/role_command.conf
 west flash -d build/lab
 ```
 
@@ -340,10 +339,10 @@ console, with no dependency on their partner.
 
 ### Phase 2 — Wire the pair together (still both command nodes)
 
-KIT_PSC3M5_EVK brings CAN out on a **screw terminal**, fed by an on-board
-**TLE9251VLEXUMA1** CAN transceiver. You are wiring transceiver-to-transceiver
-(true differential CAN), not MCU pin to MCU pin. Connect the two boards'
-screw terminals with three wires:
+KIT_PSC3M5_CC2 brings CAN out on its CAN connector, fed by an on-board
+**TLE9371VSJ** transceiver behind a digital isolator. You are wiring
+transceiver-to-transceiver (true differential CAN), not MCU pin to MCU pin.
+Connect the two boards' CAN connectors with three wires:
 
 | Board A | Board B |
 |---|---|
@@ -354,14 +353,16 @@ screw terminals with three wires:
 ```mermaid
 flowchart LR
     subgraph BoardA[Board A - Command node]
-        A_M["PSOC™ Control<br/>can1: P5.3 TX / P5.2 RX"]
-        A_T["TLE9251V<br/>STB = P7.6"]
-        A_M --- A_T
+        A_M["PSOC™ Control<br/>can1: P6.3 TX / P6.2 RX"]
+        A_I["2DIB1400F<br/>digital isolator"]
+        A_T["TLE9371VSJ<br/>STB = GND"]
+        A_M --- A_I --- A_T
     end
     subgraph BoardB[Board B - Telemetry node]
-        B_T["TLE9251V<br/>STB = P7.6"]
-        B_M["PSOC™ Control<br/>can1: P5.3 TX / P5.2 RX"]
-        B_T --- B_M
+        B_T["TLE9371VSJ<br/>STB = GND"]
+        B_I["2DIB1400F<br/>digital isolator"]
+        B_M["PSOC™ Control<br/>can1: P6.3 TX / P6.2 RX"]
+        B_T --- B_I --- B_M
     end
     A_T -- CANH --- B_T
     A_T -- CANL --- B_T
@@ -374,26 +375,30 @@ short (bench-length) distances used in the classroom. A production CAN bus
 needs 120 Ω at each end; if you extend the wiring significantly or see
 intermittent frame loss, add termination.
 
-> ### The transceiver standby pin (already handled for you)
+> ### Why there is no transceiver node in the overlay
 >
-> The TLE9251V's **STB (standby) pin is wired to P7.6** and has an internal
-> pull-up, so the transceiver powers up in **standby**: its transmitter is
-> disabled and the node cannot even acknowledge frames. The upstream
-> `kit_psc3m5_evk` devicetree does **not** model the transceiver, so nothing
-> releases STB by default.
+> On a lot of boards the CAN transceiver has a **standby pin wired to a GPIO**
+> with an internal pull-up. Nothing releases it, so the transceiver powers up
+> in standby: its transmitter is disabled and the node cannot even acknowledge
+> frames. Those boards need a `can-transceiver-gpio` node referenced from
+> `can1` via `phys`, so that Zephyr drives standby low on `can_start()`.
 >
-> The lab's overlay works around this with a `can-transceiver-gpio` node
-> referenced from `can1` via `phys`, so Zephyr drives STB low on
-> `can_start()`. `prj.conf` also sets `CONFIG_CAN_TRANSCEIVER_INIT_PRIORITY=55`,
-> because the Infineon GPIO driver initialises at priority 50 (not the usual
-> 40) and the transceiver's default of 45 would otherwise run before its own
-> GPIO port is ready.
+> This board does not. Its CAN front end is galvanically isolated, and the
+> TLE9371VSJ's standby pin is tied directly to the isolated ground. Standby is
+> active high, so the transceiver is **permanently in normal mode** and there
+> is nothing for software to enable. Adding a transceiver node here would be
+> describing hardware that does not exist.
 >
-> **Symptom if this is ever removed or broken:** `can_send()` returns
-> `-ENETUNREACH` (errno 114 under picolibc) within ~1 ms of boot, with the
-> error counters reading zero — the controller is repeatedly going bus-off
-> from unacknowledged frames and auto-recovering. It looks like a wiring or
-> termination fault but is not.
+> That is worth more than it looks. Same silicon, same Zephyr driver, same
+> application — and yet one board needs an extra devicetree node and the other
+> does not. This is exactly what people mean when they say devicetree
+> describes **the board**, not the chip.
+>
+> **Symptom on a board that does need the node and is missing it:**
+> `can_send()` returns `-ENETUNREACH` (errno 114 under picolibc) within ~1 ms
+> of boot, with the error counters reading zero — the controller is repeatedly
+> going bus-off from unacknowledged frames and auto-recovering. It looks like
+> a wiring or termination fault but is not.
 
 Both boards are still command nodes at this point. Watch what happens:
 
@@ -460,17 +465,16 @@ still in place — TODO 3b (command) or TODO 3c (telemetry) isn't done.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| No `CAN send recovered` line after the boards are wired together | The bus still isn't carrying frames. Note the warning is printed **once**, so the absence of a *recovery* line is the signal — not a stream of failures | In this order: confirm both boards are powered **and programmed**; check all three wires on the screw terminals; confirm the `can_phy` transceiver node is still in the overlay (§6). Then **wait ten seconds** before judging — see the recovery note below |
+| No `CAN send recovered` line after the boards are wired together | The bus still isn't carrying frames. Note the warning is printed **once**, so the absence of a *recovery* line is the signal — not a stream of failures | In this order: confirm both boards are powered **and programmed**; check all three wires at both CAN connectors. Then **wait ten seconds** before judging — see the recovery note below |
 | **Both** LEDs follow **their own** knob; consoles look clean | **Both boards flashed as the command node.** The deceptive one — see below | Reflash one board with `conf/role_telemetry.conf` |
 | Neither LED responds; both consoles print `No setpoint for 500 ms` | Both boards flashed as the telemetry node — nobody is transmitting | Reflash one board with `conf/role_command.conf` |
 | Board B's console prints nothing after its boot banner | Telemetry node never registered its RX filter (TODO 3b) | Without a filter the controller receives nothing, even with perfect wiring |
 
 **Miswiring — what actually happens (measured on hardware)**
 
-The screw terminal is laid out **1-CANL / 2-CANH / 3-GND**, so CANL and GND
-are the two outer positions. The most likely mistake is a three-wire harness
-**plugged in backwards at one end**, which swaps CANL and GND and leaves CANH
-in the middle untouched.
+CANL and GND sit either side of CANH on the connector, so the most likely
+mistake is a three-wire harness **plugged in backwards at one end**: that
+swaps CANL and GND and leaves CANH untouched.
 
 | Miswiring | Result |
 |---|---|
@@ -481,15 +485,15 @@ in the middle untouched.
 | CANH ↔ CANL crossed at one end | **Fails**, and presents exactly like a disconnected board — no distinct symptom to look for |
 
 > **The whole matrix reduces to one rule:** CANH must reach CANH and CANL
-> must reach CANL. Nothing else on this terminal matters. GND can be
+> must reach CANL. Nothing else on this connector matters. GND can be
 > swapped, or left off entirely, with no effect. So when a pair won't link,
-> check the middle terminal against its neighbour on both boards and ignore
+> check CANH against its neighbour on both boards and ignore
 > the ground wire — it is never the cause.
 
 > **No miswiring on this kit is destructive.** ISO 11898-2 requires CAN
 > transceivers to survive CANH/CANL shorted to ground, to VCC and to each
-> other; the on-board TLE9251V adds current limiting and thermal shutdown,
-> and nothing on the terminal exceeds 5 V. Attendees can experiment freely.
+> other; the on-board TLE9371VSJ adds current limiting and thermal shutdown,
+> and nothing on the connector exceeds 5 V. Attendees can experiment freely.
 
 > **Give it ten seconds after fixing a wire.** A controller that has gone
 > error-passive heals by one count per successfully transmitted frame. From
@@ -522,36 +526,29 @@ in the middle untouched.
 
 ---
 
-## 8. Why on-board LED0 brightness (not the mikroBUS PWM pin) is what you watch
+## 8. Why you watch LED0 brightness, not the PWM pin itself
 
-KIT_PSC3M5_EVK's PWM-capable pins are not wired to the on-board user LEDs
-in this board's current Zephyr support (the trigger-mux routing needed to
-send PWM to an arbitrary pin, including the LEDs, isn't implemented for
-this board yet). So real hardware PWM only reaches a mikroBUS header pin,
-not something you can see without extra hardware.
+This board's two user LEDs are on P9.4 and P9.5, and **neither pin has a
+TCPWM option** in its pin-mux table — their only non-GPIO routes are SPI
+chip selects. A hardware PWM signal physically cannot be muxed onto them.
 
-To keep this lab **onboard-only** (no extra parts to procure or wire for
-60 people), on-board LED0 brightness is driven by a small software PWM
-helper (`src/lab_led_softpwm.c` — provided, not a touchpoint) instead of the
-hardware PWM peripheral. You still enable and drive the **real hardware
-TCPWM PWM peripheral** in touchpoints 1c/3b/3e — it's just mirrored in
-software onto the on-board LED so the classroom demo doesn't need a scope
-or extra LEDs to see the result.
+So the lab does both things at once:
 
-### There is a real-hardware-PWM path too
+- You enable and drive the **real hardware TCPWM PWM peripheral** in
+  touchpoints 1c / 3b / 3e. That output is live, on P9.0, and you can put a
+  scope on it.
+- The same duty cycle is **mirrored onto LED0 in software** by a small
+  helper (`src/lab_led_softpwm.c` — provided, not a touchpoint), so you can
+  see the result across the room without a scope or any extra parts.
 
-The limitation above is a Zephyr software gap, not a hardware one. The LED
-pins **can** be reached from the TCPWM peripheral through the PSOC™ Control C3
-trigger multiplexer, and a second, fully implemented LED back-end does exactly
-that. It is enabled with a single extra build flag, `-DLED_TRIGMUX=y`, and
-with it the on-board LED is driven by a real TCPWM PWM channel rather than by
-software.
+On this board soft-PWM is the correct implementation for an LED, not a
+workaround for a missing driver. The pin simply does not go there.
 
-It is not the default, because the lab as taught does not need it and the two
-fades are visually indistinguishable. It changes no touchpoint and no step.
-Mentioned here only so you know the ceiling is higher than the lab's default
-path suggests — see `labs/README.md` ("On-board LED drive path") for the
-mechanism.
+> **Where the real PWM comes out, and why you should not probe it casually.**
+> P9.0 is schematic net V2_H: motor 2, phase V, high-side gate drive, brought
+> out on the 100-pin power board connector. Driving it is safe **only with no
+> motor-control power board attached**, which is how this lab is run. Do not
+> fit a power board while running the lab.
 
 ---
 
@@ -658,7 +655,7 @@ cover most questions attendees bring back from a first Zephyr project.
 
 This lab is known to work. Every step in it has been run end to end on two
 physical boards, on both board variants, wired CANH/CANL/GND across their
-screw terminals — including the deliberate failure modes in §5 and §7. If
+CAN connectors — including the deliberate failure modes in §5 and §7. If
 something here does not behave the way the guide says it will, that is worth
 raising rather than working around.
 
@@ -679,69 +676,28 @@ A Kconfig change — which is what the Phase 3 role switch is — invalidates
 enough of the tree that it rebuilds most things. That is expected, and it is
 still faster than starting over with `--pristine`.
 
-### Two things the board files do not do for you
+### Two rough edges you may notice
 
-The lab's overlay and `prj.conf` work around **two gaps in the board support
-package**: the CAN transceiver standby pin is not modelled, and the
-transceiver's default init priority runs before the GPIO port it depends on.
-Both are described where they bite, in §6. You do not have to do anything
-about either — they are already handled — but they are a fair illustration of
-what a board port looks like before it is finished, and of how you would work
-around one yourself.
+Both live in upstream Zephyr rather than in Infineon code: `can_mcan` does not
+expose one-shot transmit mode, and `can_send()` with a `NULL` callback blocks
+in a way that is easy to walk into. Both are described where they bite, in §6.
 
-Two further rough edges live in upstream Zephyr rather than in Infineon code:
-`can_mcan` does not expose one-shot transmit mode, and `can_send()` with a
-`NULL` callback blocks in a way that is easy to walk into (see §6).
-## 11. Running the lab on KIT_PSC3M5_CC2
+---
 
-The lab is written for KIT_PSC3M5_EVK. Every tier also carries a
-`boards/kit_psc3m5_cc2.overlay` so the same source builds unchanged for the
-PSOC Control C3M5 CC2 board. **Step numbering, source edits and `prj.conf`
-work are identical** — only the devicetree names in Touchpoint 1 differ.
-
-Build command — substitute the board only:
-
-```
-west build -b kit_psc3m5_cc2 -d build/lab \
-    -s devcon-training-2026/labs/can-lab-<tier> -- \
-    -DEXTRA_CONF_FILE=conf/role_command.conf
-```
-
-### What differs
-
-| | KIT_PSC3M5_EVK | KIT_PSC3M5_CC2 |
-|---|---|---|
-| PWM peripheral | `&tcpwm1_4` / `pwm1_4` | `&tcpwm2_6` / `pwm2_6` |
-| PWM output pin | P4.0 (mikroBUS header 1) | P9.0 (net V2_H, connector X19) |
-| pinctrl node | `p4_0_pwm1_4` | `p9_0_pwm2_6` |
-| GPIO ports used | `prt4` + `prt7` (transceiver STB) | `prt9` only |
-| CAN transceiver | `can-transceiver-gpio` node **required** (STB has a pull-up — see §6) | **none needed** — TLE9371VSJ STB is tied to isolated GND, so it powers up in normal mode |
-| ADC channel | 12 (on-board potentiometer) | 12 (POT1) |
-
-Because the CC2 needs no transceiver-standby node, its Touchpoint 1 is
-slightly *shorter* than the EVK's — the whole §6 note about
-releasing STB does not apply. The overlay says so inline. The CC2 image is
-also about 1 KB smaller across every tier, which is that driver not being
-built.
-
-### ⚠️ Safety — read before powering the CC2
-
-P9.0 is a **motor phase-V high-side gate drive** on this board. Driving it
-with PWM is safe **only with no motor-control power board fitted**. Never run
-this lab with a power board attached. The overlay repeats this warning at the
-point of use.
-
-The CC2 has no PWM-capable route to an on-board user LED (the user LEDs sit on
-P9.4/P9.5, which select only SCB0 SPI), so the CC2 always uses the software
-PWM path. The `-DLED_TRIGMUX=y` hardware-PWM variant in §8 is EVK-only.
-
-### Two things specific to this board
+## 11. Three things specific to this board
 
 **Your flash configuration matters here.** KIT_PSC3M5_CC2 programs through the
-`openocd` runner, and the Zephyr SDK''s bundled OpenOCD does not ship a PSC3
-target — the ModusToolbox™ Programming Tools one does. That is the
+`openocd` runner, and the Zephyr SDK bundled OpenOCD does not ship a PSC3
+target - the ModusToolbox™ Programming Tools one does. That is the
 `west config build.cmake-args` line you checked in §3. If it is missing,
-`west flash` stops with "required program ... not found" *before* touching the
-board, so it fails safe rather than leaving you with a half-programmed part.
-The potentiometer turns **backwards** on this board — fully clockwise is 0%, fully
+`west flash` stops before touching the board, so it fails safe rather than
+leaving you with a half-programmed part.
+
+**Set it before your first build, not after.** `OPENOCD` is a cached CMake
+variable. If you build first and set the config afterwards, the next build
+reports `ninja: no work to do` and quietly keeps the stale path, so `west
+flash` still fails. Recovering means a full clean rebuild. This is why §3 has
+you check the configuration before §6 has you build.
+
+**The potentiometer turns backwards.** Fully clockwise is 0%, fully
 anticlockwise is 100%. That is expected, not a fault.

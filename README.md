@@ -19,8 +19,8 @@ branch and tag, and is recommended for conference WiFi.
 
 ## PSOC Control boards: point west at ModusToolbox OpenOCD
 
-Both `kit_psc3m5_cc2` and `kit_psc3m5_evk` flash through the `openocd` runner,
-and the Zephyr SDK's bundled OpenOCD does not ship a PSC3 target. Set this once
+`kit_psc3m5_cc2` flashes through the `openocd` runner, and the Zephyr SDK's
+bundled OpenOCD does not ship a PSC3 target. Set this once
 per workspace, substituting your ModusToolbox programming tools path:
 
 ```
@@ -61,7 +61,7 @@ The pinned `devcon-training-2026` branch adds the following to mainline Zephyr:
   the `jlink` runner, which cannot program it: Zephyr links at the CBUS secure
   alias `0x12000000`, while the SEGGER loader exposes a single bank at
   `0x22000000`, so the chip erase succeeds and the program fails. The board now
-  defaults to the `openocd` runner, as `kit_psc3m5_evk` already does.
+  now defaults to the `openocd` runner instead.
 - Driver fixes the E84 dashboard lab depends on: the `infineon,tcpwm-pwm`
   binding now marks `clocks` required (a PWM node without a clock divider
   builds cleanly and silently produces no output); `i2c_infineon_pdl` releases
@@ -102,7 +102,7 @@ the display lab, not only the Helium and GPU ones -- see that lab's README.
 
 | Lab | Board(s) | Path |
 |---|---|---|
-| PSOC™ Control CAN Command & Telemetry (4 tiers) | KIT_PSC3M5_CC2 / KIT_PSC3M5_EVK | `labs/can-lab-{cheat,beginner,advanced,production}` |
+| PSOC™ Control CAN Command & Telemetry (4 tiers) | KIT_PSC3M5_CC2 | `labs/can-lab-{cheat,beginner,advanced,production}` |
 | PSOC™ Edge E84 Touch UI dashboard (3 tiers) | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-dashboard-{cheat,beginner,advanced}` |
 
 Each lab has its own README with build commands and board target strings. Both

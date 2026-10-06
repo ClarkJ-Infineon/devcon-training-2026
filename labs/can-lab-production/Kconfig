@@ -26,21 +26,5 @@ config LAB_ROLE_TELEMETRY
 
 endchoice
 
-config LAB_LED_TRIGMUX
-	bool "Drive the on-board LED from the TCPWM line via the PERI trigger mux"
-	depends on PWM
-	help
-	  Selects the "Option A" on-board LED drive path: instead of
-	  bit-banging LED0 from a software thread, route the real TCPWM PWM
-	  line to LED0 (P8.5) through the PERI trigger mux, using its
-	  PERI_TR_IO_OUTPUT43 HSIOM option.
-
-	  Set this with -DLED_TRIGMUX=y on the west build command line rather
-	  than editing a .conf file by hand - the application's CMakeLists.txt
-	  then also applies boards/led_trigmux.overlay, which is required for
-	  the pin-mux half of the route.
-
-	  This path has not yet been validated on hardware. Leave it disabled
-	  (the default) to use the known-good soft-PWM path.
-
 source "Kconfig.zephyr"
+

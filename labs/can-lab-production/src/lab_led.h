@@ -5,17 +5,14 @@
  *
  * Provided helper, not a lab touchpoint.
  *
- * Neither of the KIT_PSC3M5_EVK on-board user LEDs (P8.4 / P8.5) has a
- * direct TCPWM option in its HSIOM pin-mux table, so a hardware PWM signal
- * cannot simply be pin-muxed onto them. This interface therefore has two
- * interchangeable back-ends, selected at build time:
+ * The KIT_PSC3M5_CC2 user LEDs (P9.4 / P9.5) have no TCPWM option in their
+ * HSIOM pin-mux table - their only non-GPIO routes are SCB0 SPI selects - so
+ * a hardware PWM signal cannot be pin-muxed onto them. The on-board LED is
+ * therefore driven by lab_led_softpwm.c, which bit-bangs it from a dedicated
+ * thread.
  *
- *   lab_led_softpwm.c  (default)   - bit-bang LED0 from a dedicated thread.
- *   lab_led_trigmux.c  (Option A)  - route the *real* TCPWM PWM line to
- *                                    LED0 through the PERI trigger mux.
- *
- * Build the trigger-mux variant by adding -DLED_TRIGMUX=y to the west
- * build command; see ../../README.md ("On-board LED drive path").
+ * The real TCPWM PWM output still exists and is still enabled by the lab; it
+ * comes out on P9.0 (connector X19), where it can be probed.
  */
 
 #ifndef PSOC_CONTROL_CAN_LAB_LAB_LED_H_

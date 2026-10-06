@@ -49,7 +49,7 @@
 	 * multiplexed onto sampler 0 and 16-19 onto sampler 1
 	 * (adc_infineon_hppass_sar.c:115), so channel = 12 + 4*sampler + mux,
 	 * giving POT1 = 12 and POT2 = 16, both on mux input 0 - the same
-	 * input KIT_PSC3M5_EVK and KIT_PSC3M6_EVK use.
+	 * input the other PSOC Control kits use.
 	 *
 	 * ------------------------------------------------------------------
 	 * READ THIS BEFORE "FIXING" THIS NUMBER
@@ -78,11 +78,12 @@
 
 	/*
 	 * ==================================================================
-	 * RESOLVED (Clark, schematic, 2026-09-22) - CAN transceiver control
+	 * CAN transceiver control - nothing for software to do
 	 * ==================================================================
 	 *
-	 * The CAN front end on KIT_PSC3M5_CC2 is galvanically isolated and has
-	 * one more link in the chain than KIT_PSC3M5_EVK:
+	 * The CAN front end on KIT_PSC3M5_CC2 is galvanically isolated, so
+	 * the signal passes through one more link than it would on a
+	 * non-isolated board:
 	 *
 	 *   P6.3 CAN1_TX --> INA  ==||== OUTA --> TXD --+ TLE9371VSJ +-- CANH
 	 *   P6.2 CAN1_RX <-- OUTB ==||== INB  <-- RXD --+  STB = GND +-- CANL
@@ -104,30 +105,19 @@
 	 *   - NO can-transceiver-gpio node is needed, and no `phys` property
 	 *     on &can1. There is nothing for software to enable.
 	 *
-	 *   - EVK issue #1 CANNOT recur on this board. On KIT_PSC3M5_EVK the
-	 *     TLE9251V STB sat on P7.6 with an internal pull-up and nothing
-	 *     released it, so the node went bus-off ~1 ms after boot with its
-	 *     error counters still reading zero. That failure mode is
-	 *     designed out here in hardware.
+	 *   - The classic "bus-off ~1 ms after boot with the error counters
+	 *     still reading zero" failure - a transceiver left in standby
+	 *     because its STB pull-up was never released - cannot happen
+	 *     here. It is designed out in hardware.
 	 *
-	 *   - EVK issue #2 (gpio_infineon.c initialising at priority 50) no
-	 *     longer touches CAN on this board either, because the CAN path
-	 *     no longer depends on a GPIO device being ready. The board's
+	 *   - The CAN path does not depend on a GPIO device being ready, so
+	 *     GPIO driver init ordering cannot affect it either. The board's
 	 *     Kconfig.defconfig still sets CAN_TRANSCEIVER_INIT_PRIORITY=55
 	 *     defensively, for any future application that does add one.
 	 *
-	 * STILL OPEN - electrical/logistics only, does NOT affect this
-	 * devicetree, but DOES affect the lab wiring instructions:
-	 *
-	 *   (a) Is the isolated secondary-side rail supplied by default, or
-	 *       does it need a jumper or the motor-board supply? The isolated
-	 *       side cannot transmit if it is unpowered, and the symptom
-	 *       would look like a software fault.
-	 *
-	 *   (b) Is the 120 ohm bus termination fitted or jumper-selectable?
-	 *
-	 *   (c) 2DIB1400F default output state - see the note on the TX
-	 *       pull-up in the &pinctrl block below.
+	 * Validated on hardware: two boards, CANH/CANL/GND wired directly
+	 * between them, no external supply or termination fitted. The
+	 * isolated side is powered from the board and the link comes up.
 	 */
 
 	pwmleds {
@@ -195,9 +185,8 @@
 };
 
 /*
- * tcpwm2_6 has clk-dst = <0x512>, i.e. peripheral group 5 - the same group as
- * the EVK's tcpwm1_4 (0x508). The divider is shared with &csg0, which the
- * board dtsi sets to 2.
+ * tcpwm2_6 has clk-dst = <0x512>, i.e. peripheral group 5. The divider is
+ * shared with &csg0, which the board dtsi sets to 2.
  *
  * 240 divides the 240 MHz peripheral clock to a 1 MHz counter, giving the
  * 1 kHz PWM above exactly 1000 brightness steps.
