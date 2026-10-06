@@ -67,8 +67,10 @@ LOG_MODULE_REGISTER(command_node, LOG_LEVEL_INF);
 #error "No ADC channel on /zephyr,user. Complete Step 1 (your board's overlay in boards/, TODO 1a/1b) before building - see the lab guide."
 #endif
 
-/* LED1 toggles on every CAN frame sent - a quick "yes, a frame just went
- * out" indicator, independent of the LED0 brightness demo. Provided.
+/* Alias led1 - P9.5, silkscreen LED2, red - toggles on every CAN frame sent,
+ * a quick "yes, a frame just went out" indicator, independent of the
+ * brightness demo on led0. Note the board silkscreen counts from one while
+ * the devicetree aliases count from zero. Provided.
  */
 static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
 

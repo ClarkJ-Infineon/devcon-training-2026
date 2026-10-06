@@ -5,7 +5,7 @@
  * (full reference solution).
  *
  * Reads the onboard potentiometer, derives a 0-255 setpoint, drives the
- * local brightness output (on-board LED0 + mikroBUS PWM), and transmits the
+ * local brightness output (user LED on P9.4 plus the PWM pin P9.0), and transmits the
  * setpoint over CAN so the paired "Telemetry node" board can mirror it.
  *
  * PRODUCTION TIER. This is not one of the three difficulty tiers and has no
@@ -236,8 +236,8 @@ void run_command_node(void)
 				(setpoint * 100U) / 255U);
 		}
 
-		/* Local brightness feedback: on-board LED0 plus the hardware
-		 * PWM pin on mikroBUS 1 (P4.0), both driven by the helper.
+		/* Local brightness feedback: the user LED on P9.4 plus the
+		 * hardware PWM pin P9.0 on X19, both driven by the helper.
 		 */
 		lab_led_set_duty(setpoint);
 

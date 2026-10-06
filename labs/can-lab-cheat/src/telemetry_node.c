@@ -61,7 +61,10 @@ LOG_MODULE_REGISTER(telemetry_node, LOG_LEVEL_INF);
 #define CAN_BITRATE 500000
 #define RX_TIMEOUT  K_MSEC(500)
 
-/* LED1 toggles on every CAN frame received. Provided. */
+/* Alias led1 - P9.5, silkscreen LED2, red - toggles on every CAN frame
+ * received. The board silkscreen counts from one, the devicetree aliases
+ * count from zero. Provided.
+ */
 static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
 
 static const struct device *const can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));

@@ -9,14 +9,15 @@
  *
  * One duty value, two outputs:
  *
- *   1. On-board LED0 (P8.5), bit-banged from a dedicated thread. Neither
- *      on-board user LED has a TCPWM option in its HSIOM pin-mux table, so
- *      a real PWM signal cannot be routed to them directly - hence the
- *      software PWM.
- *   2. The hardware PWM channel on mikroBUS header 1 / P4.0. Nothing on the
- *      board lights up from this one, but the signal is genuinely there if
- *      you want to put a scope on it. This is why the lab has you enable
- *      the PWM nodes in devicetree and CONFIG_PWM in prj.conf.
+ *   1. The user LED on P9.4 - silkscreen LED1, yellow, devicetree alias
+ *      led0 - bit-banged from a dedicated thread. Neither on-board user
+ *      LED has a TCPWM option in its HSIOM pin-mux table, so a real PWM
+ *      signal cannot be routed to them directly - hence the software PWM.
+ *   2. The hardware PWM channel on P9.0, brought out on connector X19.
+ *      Nothing on the board lights up from this one, but the signal is
+ *      genuinely there if you want to put a scope on it. This is why the
+ *      lab has you enable the PWM nodes in devicetree and CONFIG_PWM in
+ *      prj.conf.
  *
  * Implementation note, in case you are curious: the ON pulse is timed with
  * k_busy_wait() so brightness is smooth regardless of the kernel tick rate,
@@ -68,10 +69,26 @@ static void soft_pwm_thread(void *a, void *b, void *c)
 		uint32_t on_us = (SOFT_PWM_PERIOD_USEC * duty) / 255U;
 		uint32_t off_us = SOFT_PWM_PERIOD_USEC - on_us;
 
-		if (on_us > 0U) {
-			gpio_pin_set_dt(&led0, 1);
-			k_busy_wait(on_us);
+		/* Both extremes are steady states, not pulse trains. Sending
+		 * them round the pulse loop below would leave a sliver of the
+		 * opposite level at one end, because the off phase can never
+		 * be shorter than SOFT_PWM_MIN_SLEEP_USEC - so "off" would
+		 * never quite extinguish.
+		 */
+		if (duty == 0U) {
+			gpio_pin_set_dt(&led0, 0);
+			k_sleep(K_MSEC(5));
+			continue;
 		}
+
+		if (duty == UINT8_MAX) {
+			gpio_pin_set_dt(&led0, 1);
+			k_sleep(K_MSEC(5));
+			continue;
+		}
+
+		gpio_pin_set_dt(&led0, 1);
+		k_busy_wait(on_us);
 
 		gpio_pin_set_dt(&led0, 0);
 		k_sleep(K_USEC(MAX(off_us, SOFT_PWM_MIN_SLEEP_USEC)));
@@ -91,7 +108,7 @@ void lab_led_set_duty(uint8_t duty_0_255)
 {
 	atomic_set(&duty_atomic, duty_0_255);
 
-	/* Same duty on the real hardware PWM pin (mikroBUS 1 / P4.0). */
+	/* Same duty on the real hardware PWM pin (P9.0 on X19). */
 	(void)pwm_set_pulse_dt(&cmd_pwm,
 			       (uint32_t)((uint64_t)cmd_pwm.period * duty_0_255 / 255U));
 }

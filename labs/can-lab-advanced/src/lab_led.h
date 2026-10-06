@@ -18,8 +18,8 @@ void lab_led_init(void);
 /*
  * Set the brightness, 0 (off) to 255 (fully on).
  *
- * Drives both the on-board LED0 and the hardware PWM pin on mikroBUS
- * header 1 (P4.0).
+ * Drives both the user LED on P9.4 (silkscreen LED1, alias led0) and the
+ * hardware PWM pin P9.0, on connector X19.
  */
 void lab_led_set_duty(uint8_t duty_0_255);
 

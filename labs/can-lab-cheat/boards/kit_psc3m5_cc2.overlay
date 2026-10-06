@@ -90,6 +90,27 @@
 	};
 };
 
+/*
+ * PROVIDED - not a TODO, nothing to uncomment here.
+ *
+ * The board devicetree declares both user LEDs GPIO_ACTIVE_LOW. On the
+ * KIT_PSC3M5_CC2 cards used for this lab they light on a HIGH output, so
+ * every logical "on" reached the LED as "off". The visible symptom was the
+ * brightness LED tracking the knob backwards and sitting lit with the knob
+ * at zero.
+ *
+ * Correcting the polarity here rather than compensating in C keeps
+ * gpio_pin_set_dt(..., 1) meaning "lit" everywhere in the application, and
+ * fixes the CAN activity LED at the same time.
+ */
+&user_led0 {
+	gpios = <&gpio_prt9 4 GPIO_ACTIVE_HIGH>;
+};
+
+&user_led1 {
+	gpios = <&gpio_prt9 5 GPIO_ACTIVE_HIGH>;
+};
+
 &adc0 {
 	/*
 	 * TODO 1a (cont'd): enable the HPPASS SAR ADC controller itself.

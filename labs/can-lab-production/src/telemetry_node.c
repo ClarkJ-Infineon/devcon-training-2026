@@ -5,8 +5,8 @@
  * (reference solution).
  *
  * Receives the setpoint sent by the paired "Command node" board over CAN
- * and mirrors it on the local brightness output (on-board LED0 + mikroBUS
- * PWM).
+ * and mirrors it on the local brightness output (user LED on P9.4 plus
+ * the PWM pin P9.0).
  */
 
 #include <zephyr/kernel.h>

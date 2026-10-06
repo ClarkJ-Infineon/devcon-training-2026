@@ -214,6 +214,20 @@
 };
 
 /*
+ * The board devicetree declares both user LEDs GPIO_ACTIVE_LOW. On the
+ * KIT_PSC3M5_CC2 cards used for this lab they light on a HIGH output, so
+ * every logical "on" reached the LED as "off". Correcting the polarity here
+ * keeps gpio_pin_set_dt(..., 1) meaning "lit" throughout the application.
+ */
+&user_led0 {
+	gpios = <&gpio_prt9 4 GPIO_ACTIVE_HIGH>;
+};
+
+&user_led1 {
+	gpios = <&gpio_prt9 5 GPIO_ACTIVE_HIGH>;
+};
+
+/*
  * NOTE - no `phys` property and no transceiver node, deliberately.
  *
  * The TLE9371VSJ STB pin is hardwired to the isolated ground, so the
