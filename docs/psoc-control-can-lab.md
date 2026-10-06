@@ -160,13 +160,6 @@ now rather than at minute 40:
 This guide uses the silkscreen names in prose, because that is what you are
 looking at, and the alias names when talking about code.
 
-> **One line in the overlay is already filled in for you.** The board's
-> devicetree declares both user LEDs active-low, but on these cards they
-> light on a high output, so the overlay overrides the polarity. It is marked
-> `PROVIDED` — you do not need to touch it. It is a good example of what an
-> overlay is for: correcting or extending a board description without
-> forking the board.
-
 ### Why the LED is driven in software, not by the PWM peripheral
 
 Neither P9.4 nor P9.5 has a TCPWM option in its pin-mux table — their only
