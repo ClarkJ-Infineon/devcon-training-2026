@@ -76,25 +76,34 @@ If any line says `[MISSING]`, reopen your terminal and run the script once more
 README covers the handful of things that can go wrong; work through it before
 the session rather than during it.
 
-### ModusToolbox™ Programming Tools
+### Your debug probe software
 
-You already have these — **Programming Tools 1.9** is a prerequisite for the
-ModusToolbox™ classes at this event, so it is installed on every laptop in the
-room. There is nothing to do here. Confirm it if you like:
+Two different probes are used across this week's kits, and between them the
+prerequisites are already covered — both of these are installed on every laptop
+in the room for the ModusToolbox™ classes at this event. There is nothing to
+install here.
+
+| Your kit | On-board probe | Zephyr flashes it with |
+| --- | --- | --- |
+| **CY8CPROTO-041TP** | KitProg3 | Infineon's OpenOCD |
+| **KIT_PSE84_EVAL** | KitProg3 | Infineon's OpenOCD |
+| **KIT_PSC3M5_CC2** | Isolated SEGGER J-Link LITE | SEGGER J-Link |
+
+Confirm whichever applies to you, if you like:
 
 ```
 dir C:\Infineon\Tools\ModusToolboxProgtools-1.9\openocd\bin\openocd.exe
+dir "C:\Program Files\SEGGER\JLink\JLink.exe"
 ```
 
-It is worth knowing *why* Zephyr needs it, because this catches people.
-Zephyr flashes these boards with OpenOCD, and the copy of OpenOCD that comes
-with the Zephyr toolchain is the generic upstream build — it knows about
-PSOC™ 4 and PSOC™ 6, but it has no target support for PSOC™ Control or
-PSOC™ Edge and no KitProg3 support either. Infineon's build has all of it.
+It is worth knowing *why* the OpenOCD one matters, because this catches people.
+The copy of OpenOCD that comes with the Zephyr toolchain is the generic
+upstream build — it knows about PSOC™ 4 and PSOC™ 6, but it has no target
+support for PSOC™ Edge and no KitProg3 support either. Infineon's build has all
+of it, and you point Zephyr at it with one command in §5.
 
-You point Zephyr at it with one command, in §5. Without that, `west flash`
-cannot reach your board at all — and this applies to **every** board used this
-week, because they all flash through OpenOCD.
+The J-Link path needs no such pointing. Zephyr finds J-Link on its own, so
+PSOC™ Control attendees have nothing to configure.
 
 ---
 
@@ -232,9 +241,15 @@ typed — note the **forward slashes**, which CMake wants even on Windows.
 It is a workspace setting, so you type it once and it applies to every build
 in `devcon-ws` for the rest of the week.
 
-> **If you skip this**, builds still succeed and `west flash` fails before it
-> touches the board. That is the good outcome: it fails safely rather than
-> leaving you with a half-programmed device.
+> **Run it even if your kit is KIT_PSC3M5_CC2.** That board flashes through
+> J-Link and ignores this setting, so it costs you nothing — and it means
+> everyone in the room runs the same command and ends the session in the same
+> state.
+
+> **If you skip this** and your kit flashes through OpenOCD, builds still
+> succeed and `west flash` fails before it touches the board. That is the good
+> outcome: it fails safely rather than leaving you with a half-programmed
+> device.
 
 ### What you now have
 
@@ -255,8 +270,10 @@ machinery.
 
 ## 6. Your board
 
-One USB cable, into the **KitProg3** connector on your kit — not the other USB
-connector, which is a device port and will not program anything.
+One USB cable, into the debug connector on your kit — marked **KitProg3** on
+CY8CPROTO-041TP and KIT_PSE84_EVAL, and the **debug USB** connector on
+KIT_PSC3M5_CC2. Not the other USB connector, which is a device port and will
+not program anything.
 
 Open Device Manager and look under **Ports (COM & LPT)** for a port that was
 not there before you plugged in. **Write the number down.** You will need it

@@ -24,10 +24,9 @@ The workspace is the single biggest risk to the hour and it cannot be fixed in
 the room — `west update` alone is a 2.2 GB download. Anyone who arrives
 without one should be paired immediately rather than left to catch up.
 
-The in-room check that matters most is the flash configuration. A workspace
-missing the `west config build.cmake-args` line builds perfectly and cannot
-flash, and the attendee will not discover it until their first build is
-already done. §3 item 2 catches it in ten seconds.
+The in-room check that matters most is that everyone has a workspace at all.
+§3 of the attendee guide catches the rest in three minutes. Flashing needs no
+configuration on this board — the kit's onboard J-Link LITE is enough.
 
 **This lab fails differently from a solo lab.** One attendee falling behind
 strands a second one who did nothing wrong. Watch for a board that has not

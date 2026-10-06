@@ -83,24 +83,13 @@ but do it now rather than at minute 29, because none of it is fixable mid-lab.
    You want version `1.0.1` with `arm-zephyr-eabi` listed. If the command is
    not recognised, you are not in `devcon-ws`.
 
-2. **Your flash configuration survived.** Still in `devcon-ws`:
-
-```
-   west config build.cmake-args
-```
-
-   This should print a line pointing at the ModusToolbox™ Programming Tools
-   OpenOCD. If it says `build.cmake-args is unset`, re-run the `west config`
-   command from the setup guide now — without it `west flash` cannot reach the
-   board.
-
-3. **Your board enumerates.** One USB cable to the KitProg3 connector, and a
-   COM port in Device Manager. Note the number — in this lab your partner has
+2. **Your board enumerates.** One USB cable to the **debug USB connector**, and
+   a COM port in Device Manager. Note the number — in this lab your partner has
    one too, and they will not be the same.
 
-4. **Your serial console is open** at **115200 8N1**.
+3. **Your serial console is open** at **115200 8N1**.
 
-5. **You have flashed this board at least once** — the blinky from the intro
+4. **You have flashed this board at least once** — the blinky from the intro
    session counts, and is the whole reason that session ended with one.
 
 ### Pick your tier now
@@ -119,7 +108,7 @@ you are undecided, take `can-lab-beginner`.
 The rest of this guide writes the folder as `<tier>`. Substitute whichever you
 chose — **the step numbering is identical in all three.**
 
-If any of the five checks above fail, pair with a neighbour for the hour. In a
+If any of the four checks above fail, pair with a neighbour for the hour. In a
 paired lab that is less of a compromise than it sounds: you still need two
 boards between you either way.
 
@@ -444,8 +433,8 @@ That is the finish line.
 
 ## 7. Verification — did it work? (5 min)
 
-Serial settings for both boards: **115200 8N1, no flow control** — the
-console is on `uart3` (P6.3 TX / P6.2 RX), exposed on the KitProg3 USB-UART
+Serial settings for both boards: **115200 8N1, no flow control** — the console
+is on `uart1`, exposed through the onboard J-Link LITE USB-UART bridge as a
 COM port.
 
 Once Phase 3 is done, all five of these should be true:
@@ -453,10 +442,10 @@ Once Phase 3 is done, all five of these should be true:
 | # | Check | Expected |
 |---|---|---|
 | 1 | Both consoles | A `command_node` / `telemetry_node` banner at boot, then a `setpoint <n> (<n>%)` line about twice a second |
-| 2 | **Turn Board A's knob** | Board A's LED1 (blue) brightness changes immediately, and its console `setpoint` sweeps with the knob |
-| 3 | **Watch Board B while turning Board A's knob** | Board B's LED1 tracks Board A's within ~50 ms, and its console prints `CAN link up - receiving setpoints` then matching values. **This is the finish line** — and it is the check that catches a same-role mis-flash |
-| 4 | Both boards' LED2 (orange) | Blinks on every CAN TX attempt (Board A) or frame received (Board B). At a 50 ms interval this is **very rapid; that is correct** |
-| 5 | *(bonus, if a scope is handy)* | The real hardware PWM signal is on mikroBUS 1 / pin P4.0 on both boards at the same duty cycle as the LED |
+| 2 | **Turn Board A's knob** | Board A's LED0 brightness changes immediately, and its console `setpoint` sweeps with the knob |
+| 3 | **Watch Board B while turning Board A's knob** | Board B's LED0 tracks Board A's within ~50 ms, and its console prints `CAN link up - receiving setpoints` then matching values. **This is the finish line** — and it is the check that catches a same-role mis-flash |
+| 4 | Both boards' LED1 | Blinks on every CAN TX attempt (Board A) or frame received (Board B). At a 50 ms interval this is **very rapid; that is correct** |
+| 5 | *(bonus, if a scope is handy)* | The hardware PWM signal is on **P9.0, at connector X19**, on both boards at the same duty cycle as LED0. Read §8 before probing it |
 
 A `setpoint` pinned at exactly `128` that never moves means a placeholder is
 still in place — TODO 3b (command) or TODO 3c (telemetry) isn't done.
@@ -684,20 +673,11 @@ in a way that is easy to walk into. Both are described where they bite, in §6.
 
 ---
 
-## 11. Three things specific to this board
+## 11. Two things specific to this board
 
-**Your flash configuration matters here.** KIT_PSC3M5_CC2 programs through the
-`openocd` runner, and the Zephyr SDK bundled OpenOCD does not ship a PSC3
-target - the ModusToolbox™ Programming Tools one does. That is the
-`west config build.cmake-args` line you checked in §3. If it is missing,
-`west flash` stops before touching the board, so it fails safe rather than
-leaving you with a half-programmed part.
-
-**Set it before your first build, not after.** `OPENOCD` is a cached CMake
-variable. If you build first and set the config afterwards, the next build
-reports `ninja: no work to do` and quietly keeps the stale path, so `west
-flash` still fails. Recovering means a full clean rebuild. This is why §3 has
-you check the configuration before §6 has you build.
+**Flashing needs no special setup.** The kit carries an onboard isolated
+SEGGER J-Link LITE, so `west flash` uses the stock `jlink` runner and finds
+the board on its own. There is nothing to configure beforehand.
 
 **The potentiometer turns backwards.** Fully clockwise is 0%, fully
 anticlockwise is 100%. That is expected, not a fault.

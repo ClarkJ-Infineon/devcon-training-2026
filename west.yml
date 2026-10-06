@@ -20,7 +20,7 @@ manifest:
     - name: zephyr
       remote: clarkj-infineon
       repo-path: zephyr
-      revision: 289eb050d314d499b7105d7f2a20e74385a8b043
+      revision: 9b3acf278d3d99271c724d1d427b34b36bab3517
       west-commands: scripts/west-commands.yml
 
     - name: hal_infineon
