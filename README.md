@@ -7,29 +7,51 @@ project list on top of `ClarkJ-Infineon/zephyr`, branch `devcon-training-2026`
 
 ## Quick start
 
+Run these in order. The last two cannot be moved earlier: both depend on files
+that do not exist on disk until `west update` has finished.
+
 ```
 pip install west
 west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026 devcon-ws
 cd devcon-ws
 west update --narrow
+west sdk install -t arm-zephyr-eabi
+pip install -r zephyr/scripts/requirements-base.txt imgtool
 ```
+
+| Step | What it does |
+|---|---|
+| `pip install west` | Installs west itself. Reopen your terminal afterwards if `west` is not found. |
+| `west init -m <url> devcon-ws` | Fetches only the manifest — a small file naming which repositories are needed and which commit of each. Seconds. |
+| `west update --narrow` | Fetches those repositories. **This is the 1.0 GB**, roughly five minutes on a good connection. If it drops, run it again; it resumes. |
+| `west sdk install -t arm-zephyr-eabi` | Installs the Arm toolchain. `west sdk` is provided by the Zephyr repository, so the command does not exist until the step above completes. |
+| `pip install -r zephyr/scripts/requirements-base.txt imgtool` | Installs the Python packages the build uses to generate devicetree and Kconfig output and to sign images. `requirements-base.txt` lives inside the Zephyr repository, so this is likewise only possible afterwards. |
 
 `--narrow` fetches just the pinned revision of each project rather than every
-branch and tag, and is recommended for conference WiFi.
+branch and tag. The manifest additionally sets `clone-depth: 1` on every
+project, so each repository arrives at its single pinned commit with no
+history. Full history for any project can be recovered later with
+`git fetch --unshallow` inside it.
 
-## PSOC Control boards: point west at ModusToolbox OpenOCD
+## PSOC™ Edge: point west at ModusToolbox™ OpenOCD
 
-`kit_psc3m5_cc2` flashes through the `openocd` runner, and the Zephyr SDK's
-bundled OpenOCD does not ship a PSC3 target. Set this once
-per workspace, substituting your ModusToolbox programming tools path:
+`kit_pse84_eval` flashes through the `openocd` runner, and the Zephyr SDK's
+bundled OpenOCD does not ship a PSE84 target. Set this once per workspace,
+substituting your ModusToolbox™ Programming Tools path:
 
 ```
-west config build.cmake-args -- "-DOPENOCD=<progtools>/openocd/bin/openocd.exe -DOPENOCD_DEFAULT_PATH=<progtools>/openocd/scripts"
+west config build.cmake-args -- "-DOPENOCD=C:/Infineon/Tools/ModusToolboxProgtools-1.9/openocd/bin/openocd.exe -DOPENOCD_DEFAULT_PATH=C:/Infineon/Tools/ModusToolboxProgtools-1.9/openocd/scripts"
 ```
 
-With that set, `west flash` works for every lab in this repository; no manual
-programming steps are needed. If it is missing, `west flash` stops before
-touching the board, so nothing is left in a half-programmed state.
+Note the forward slashes, which CMake expects even on Windows. If this is
+missing, `west flash` stops before touching the board, so nothing is left in a
+half-programmed state.
+
+**The PSOC™ Control CAN lab does not need this.** `kit_psc3m6_evk` defaults to
+the `jlink` runner and flashes through the board's onboard SEGGER J-Link with
+a stock Zephyr toolchain. J-Link software **V9.68 or newer** is required.
+Infineon OpenOCD remains available on that board as an alternate runner via
+`west flash --runner openocd`.
 
 ## What this manifest pins
 
@@ -39,36 +61,59 @@ cannot select one vendor. This manifest therefore lists projects explicitly:
 
 | Project | Purpose |
 |---|---|
-| `zephyr` | the training branch: mainline plus the E84 display driver port and a handful of Infineon driver fixes |
+| `zephyr` | the training branch: mainline plus the E84 display driver port, PSOC™ Control C3M6 analog and timer support, and a handful of Infineon driver fixes |
 | `hal_infineon` | PSOC™ Control and PSOC™ Edge PDL/HAL |
 | `cmsis`, `cmsis_6` | ARM CMSIS core headers, required by `hal_infineon` |
 | `lvgl` | graphics library for the E84 display and dashboard labs |
 
 No `segger`, no other vendor HALs, and no babblesim, TF-M or testing-only
-modules. Download footprint is approximately **2.6 GB**, against **7.9 GB**
-for upstream Zephyr's complete default manifest — a **~67% reduction**.
+modules. `west update --narrow` fetches approximately **1.0 GB**, against
+**7.9 GB** for upstream Zephyr's complete default manifest. Adding the Zephyr
+SDK brings the workspace to roughly **2.5 GB** in total.
+
+`zephyr` is pinned by commit SHA rather than branch name, so a given commit of
+this manifest always resolves to one exact Zephyr tree.
 
 ## Zephyr branch contents
 
 The pinned `devcon-training-2026` branch adds the following to mainline Zephyr:
 
+**PSOC™ Control C3M6, for the CAN lab**
+
+- MCPASS v3 SAR ADC support — an MFD register-layout addition, an ADC driver
+  addition, the HPPASS and SAR ADC devicetree nodes for the SoC, and the board
+  enablement. This is what makes the lab's potentiometer readable.
+- TCPWM devicetree nodes for the SoC and board enablement, used by the lab's
+  LED brightness output.
+- A `jlink` runner for the board, so `west flash` works with a stock Zephyr
+  toolchain and no separate Infineon OpenOCD installation.
+- A flash load-address fix in `soc/infineon/psc3`. PSC3 exposes one physical
+  flash through two address aliases: code executes from the CBUS alias, which
+  is what `flash0` describes in devicetree, but the device is programmed
+  through the SAHB alias, a constant `0x20000000` higher. Without the
+  adjustment the erase succeeds and the program fails.
+
+**PSOC™ Edge E84, for the display and dashboard labs**
+
 - The `infineon_dc` MIPI-DSI display controller driver and the Waveshare DSI
-  panel drivers, required by the E84 display lab.
-- A fix to `drivers/i2c/i2c_infineon_pdl.c`, where the `continueXfer` field no
-  longer exists in the pinned PDL revision. This applies to every Infineon PDL
-  I2C user, not only the E84 labs.
-- A flash-runner fix for `kit_psc3m5_cc2`. On mainline this board flashes with
-  the `jlink` runner, which cannot program it: Zephyr links at the CBUS secure
-  alias `0x12000000`, while the SEGGER loader exposes a single bank at
-  `0x22000000`, so the chip erase succeeds and the program fails. The board now
-  now defaults to the `openocd` runner instead.
-- Driver fixes the E84 dashboard lab depends on: the `infineon,tcpwm-pwm`
-  binding now marks `clocks` required (a PWM node without a clock divider
-  builds cleanly and silently produces no output); `i2c_infineon_pdl` releases
-  the caller buffer on an error path and no longer logs every abort timeout
-  from the ISR; `tlv320dac310x` treats `reset-gpios` as optional, which the
-  E84 codec requires; and the PDL DMA driver no longer reports a benign
-  underrun as an error.
+  panel driver.
+- VG-Lite GPU support for LVGL on E84, and a fix so the LVGL Helium sources are
+  assembled only when that path is selected.
+- `tlv320dac310x` treats `reset-gpios` as optional, which the E84 codec
+  requires.
+
+**Infineon driver fixes, not specific to one lab**
+
+- `drivers/i2c/i2c_infineon_pdl.c` releases the caller's buffer on an error
+  path, corrects the I2C recovery GPIO configuration, and no longer logs every
+  abort timeout from the ISR.
+- `drivers/serial/uart_infineon_pdl.c` caches `uart_config` only on success,
+  and an IRQ-driven API hang and zero-length assert are fixed.
+- The `infineon,tcpwm-pwm` binding marks `clocks` as required. A PWM node
+  without a clock divider previously built cleanly and silently produced no
+  output.
+- The PDL DMA driver no longer reports a benign underrun as an error.
+- `kit_psc3m5_cc2` user LED polarity is corrected.
 
 ## E84 labs require `--sysbuild`
 
@@ -96,14 +141,22 @@ west patch apply
 
 Definitions are in `zephyr/patches.yml`; the patch files are under
 `zephyr/patches/lvgl/`. Patch 0001 is required by every configuration of
-the display lab, not only the Helium and GPU ones -- see that lab's README.
+the display lab, not only the Helium and GPU ones — see that lab's README.
 
 ## Labs
 
-| Lab | Board(s) | Path |
+| Lab | Board | Path |
 |---|---|---|
-| PSOC™ Control CAN Command & Telemetry (4 tiers) | KIT_PSC3M5_CC2 | `labs/can-lab-{cheat,beginner,advanced,production}` |
-| PSOC™ Edge E84 Touch UI dashboard (3 tiers) | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-dashboard-{cheat,beginner,advanced}` |
+| PSOC™ Control — CAN Command & Telemetry | KIT_PSC3M6_EVAL | `labs/can-lab-{beginner,advanced,cheat}` |
+| …production reference | KIT_PSC3M6_EVAL | `labs/can-lab-production` |
+| PSOC™ Edge — E84 Touch UI dashboard | KIT_PSE84_EVAL (4.3" Waveshare panel) | `labs/e84-dashboard-{beginner,advanced,cheat}` |
+
+The CAN lab ships three attendee tiers — `beginner`, `advanced` and `cheat` —
+which differ only in how much of the code is left for you to write. Steps 1 and
+2 are byte-identical across all three, so you can change tier mid-lab by
+opening a different `src/` file. `can-lab-production` is not a tier: it is a
+complete reference implementation with full error handling and the trigger-mux
+LED back-end enabled by default.
 
 Each lab has its own README with build commands and board target strings. Both
 `west build` and `west flash` take `-d <build directory>`, so `west flash -d
@@ -111,21 +164,24 @@ build/lab` flashes whatever `west build -d build/lab` produced.
 
 ## Classroom guides
 
-| Guide | Session | Path |
+| Guide | Class | Path |
 |---|---|---|
-| Getting Started with Zephyr on PSOC™ | 1 — intro, all attendees | `docs/psoc-zephyr-setup.md` |
-| PSOC™ Control — Command & Telemetry over CAN | 2 — advanced | `docs/psoc-control-can-lab.md` |
+| Getting Started with Zephyr on PSOC™ | Software General Session (Zephyr) | `docs/psoc-zephyr-setup.md` |
+| PSOC™ Control — Command & Telemetry over CAN | Zephyr on PSOC™ Control | `docs/psoc-control-can-lab.md` |
 | …instructor companion | | `docs/psoc-control-can-lab-instructor.md` |
-| PSOC™ Edge — A Touch Dashboard with LVGL | 3 — advanced | `docs/psoc-edge-lvgl-lab.md` |
+| PSOC™ Edge — A Touch Dashboard with LVGL | Zephyr on PSOC™ Edge | `docs/psoc-edge-lvgl-lab.md` |
 | …instructor companion | | `docs/psoc-edge-lvgl-lab-instructor.md` |
 
-Both advanced labs are self-contained and assume only the intro session. The
+Both advanced labs are self-contained and assume only the general session. The
 two instructor companions are published alongside their lab guides rather than
 held back.
 
 ## Limitations
 
-- On KIT_PSC3M5_CC2, flashing requires the `zephyr` revision pinned by this
-  manifest. Earlier revisions default to the `jlink` runner, which cannot
-  program the secure flash alias the image is linked at, and `west flash`
-  fails with "Writing target memory failed" after a successful erase.
+- The board target for KIT_PSC3M6_EVAL is spelled `kit_psc3m6_evk` upstream,
+  an inherited naming error from the earlier C3M5 EVK. Use `kit_psc3m6_evk` in
+  build commands; the kit itself is KIT_PSC3M6_EVAL.
+- Flashing KIT_PSC3M6_EVAL requires the `zephyr` revision pinned by this
+  manifest. Earlier revisions lack the PSC3 flash load-address adjustment, and
+  `west flash` fails with "Writing target memory failed" after a successful
+  erase.
