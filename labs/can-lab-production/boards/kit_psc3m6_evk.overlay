@@ -2,27 +2,24 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * PSOC Control CAN Command & Telemetry lab - devicetree overlay for
- * KIT_PSC3M6_EVK (PSOC Control C3M6 Evaluation Kit).
+ * KIT_PSC3M6_EVAL (PSOC Control C3M6 Evaluation Kit).
  *
  * Shared by both roles (Command node and Telemetry node); only the
  * application code built on top differs.
  *
- * =====================================================================
- * WHY THIS OVERLAY IS SHORT
- * =====================================================================
+ * The board devicetree already describes everything this lab drives:
  *
- * Unlike the CC2 overlay, almost nothing board-specific is needed here.
- * The board devicetree already provides, in upstream form:
+ *   - CAN FD on canfd0/can1 (P5.2 RX, P5.3 TX) with a can-transceiver-gpio
+ *     node (can_phy0, standby on P12.5).
+ *   - The on-board potentiometer as SAR ADC channel 12 on AN_B4, including
+ *     gain, reference, resolution and acquisition time.
+ *   - A hardware PWM output on P5.0 (tcpwm0_6 / pwm0_6) with its peripheral
+ *     clock divider and push-pull pinctrl.
  *
- *   - CAN FD on canfd0/can1 (P5.2 RX, P5.3 TX) with a real
- *     can-transceiver-gpio node (can_phy0, standby on P12.5). No
- *     transceiver wiring is required from the application.
- *   - The on-board potentiometer as SAR ADC channel 12 on AN_B4,
- *     including gain, reference, resolution and acquisition time.
- *   - A hardware PWM output on P5.0 (tcpwm0_6 / pwm0_6) with its
- *     peripheral clock divider and push-pull pinctrl already set up.
+ * This overlay nominates which of those the application consumes.
  *
- * All this overlay does is nominate which of those the lab consumes.
+ * Docs: what an overlay is and why it exists
+ *   https://docs.zephyrproject.org/latest/build/dts/intro.html
  */
 
 #include <zephyr/dt-bindings/pwm/pwm.h>
@@ -30,8 +27,8 @@
 / {
 	/*
 	 * The Command node reads the potentiometer to produce its setpoint.
-	 * The board enables ADC channel 12 (the pot, on AN_B4 - the first
-	 * input of mux sampler 0); the lab only has to claim it.
+	 * ADC channel 12 is the pot, on AN_B4 - the first input of mux
+	 * sampler 0.
 	 */
 	zephyr,user {
 		io-channels = <&adc0 12>;
@@ -42,16 +39,9 @@
 	};
 
 	/*
-	 * Command PWM output.
-	 *
-	 * This is a real hardware PWM channel on a free pin, which is a
-	 * genuine improvement over the CC2 board: there the only reachable
-	 * hardware-PWM route was a motor inverter gate-drive net, so that
-	 * lab falls back to a software PWM for its LED. Here the output is
-	 * an ordinary signal pin, safe to probe or to drive a 2-pin LED.
-	 *
-	 * P5.0 is brought out on the expansion header, adjacent to the CAN
-	 * pins (P5.2/P5.3) already used by the lab.
+	 * Command PWM output on P5.0, brought out on header J21 pin 11, next
+	 * to the CAN pins (P5.2/P5.3). It is an ordinary signal pin, safe to
+	 * probe or to drive a 2-pin LED harness (GND is on J21 pin 2).
 	 */
 	pwmleds {
 		compatible = "pwm-leds";

@@ -18,8 +18,8 @@ void lab_led_init(void);
 /*
  * Set the brightness, 0 (off) to 255 (fully on).
  *
- * Drives both the user LED on P9.4 (silkscreen LED1, alias led0) and the
- * hardware PWM pin P9.0, on connector X19.
+ * Drives both the user LED on P8.4 (silkscreen LED3, alias led0) and the
+ * hardware PWM pin P5.0.
  */
 void lab_led_set_duty(uint8_t duty_0_255);
 

@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * PSOC Control CAN Command & Telemetry lab - soft-PWM LED back-end
- * (default / fallback path).
+ * (fallback path, selected with -DLED_SOFTPWM=y).
  *
  * Provided helper, not a lab touchpoint - see lab_led.h for why this
  * exists. Implemented as a dedicated thread that bit-bangs the led0 alias.
@@ -88,7 +88,7 @@ void lab_led_set_duty(uint8_t duty_0_255)
 {
 	atomic_set(&duty_atomic, duty_0_255);
 
-	/* Same duty on the real hardware PWM pin (P9.0 on X19). */
+	/* Same duty on the real hardware PWM pin (P5.0). */
 	(void)pwm_set_pulse_dt(&cmd_pwm,
 			       (uint32_t)((uint64_t)cmd_pwm.period * duty_0_255 / 255U));
 }

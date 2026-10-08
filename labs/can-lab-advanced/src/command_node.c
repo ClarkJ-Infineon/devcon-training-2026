@@ -9,8 +9,8 @@
  *
  * This is the file you write. There are four TODOs; each one is a small
  * piece of real Zephyr API code. The lab guide walks through them in order.
- * Everything else - the LED helper, the CAN wire format, the heartbeat
- * blink - is provided.
+ * Everything else - the LED helper, the CAN wire format, the bus-state
+ * LED - is provided.
  *
  * ADVANCED TIER. Each TODO says which API to use and what it has to do, and
  * links to the reference docs - but never the line to type. If that is not
@@ -67,15 +67,29 @@ LOG_MODULE_REGISTER(command_node, LOG_LEVEL_INF);
 #define CAN_BITRATE      500000
 
 #if !DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
-#error "No ADC channel on /zephyr,user. Complete Step 1 (your board's overlay in boards/, TODO 1a/1b) before building - see the lab guide."
+#error "No ADC channel on /zephyr,user. Complete Step 1 (your board's overlay in boards/, TODO 1a) before building - see the lab guide."
 #endif
 
-/* Alias led1 - P9.5, silkscreen LED2, red - toggles on every CAN frame sent,
- * a quick "yes, a frame just went out" indicator, independent of the
- * brightness demo on led0. Note the board silkscreen counts from one while
- * the devicetree aliases count from zero. Provided.
+/* Alias led1 - P8.5, silkscreen LED4, blue - the bus-state indicator.
+ *
+ * Lit means the CAN controller is no longer error-active: either
+ * error-passive or bus-off. That makes the lab's central failure mode
+ * physical - a node alone on the bus lands here within a second or two,
+ * and the LED says so without the console. Note the board silkscreen
+ * counts from one while the devicetree aliases count from zero. Provided.
  */
-static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+static const struct gpio_dt_spec bus_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+
+/* Provided. Runs in driver context, so it does nothing but set a pin. */
+static void bus_state_cb(const struct device *dev, enum can_state state,
+			 struct can_bus_err_cnt err_cnt, void *user_data)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(err_cnt);
+	ARG_UNUSED(user_data);
+
+	gpio_pin_set_dt(&bus_led, state == CAN_STATE_ERROR_ACTIVE ? 1 : 0);
+}
 
 /* The potentiometer's ADC channel, described by the overlay you edited in
  * Step 1. Provided.
@@ -170,17 +184,18 @@ static void send_setpoint(uint8_t setpoint)
 	 *   https://docs.zephyrproject.org/latest/doxygen/html/structcan__frame.html
 	 */
 	ARG_UNUSED(setpoint);
-
-	/* Blink so you can see a transmit attempt happen. Provided. */
-	gpio_pin_toggle_dt(&heartbeat_led);
 }
 
 void run_command_node(void)
 {
 	LOG_INF("Command node starting (PSOC Control CAN lab)");
 
+	/* Provided: the bus-state LED and the brightness output. */
+	gpio_pin_configure_dt(&bus_led, GPIO_OUTPUT_INACTIVE);
+	lab_led_init();
+
 	/*
-	 * TODO 3a: bring up the CAN controller. Four calls, in this order:
+	 * TODO 3a: bring up the CAN controller. Five calls, in this order:
 	 *
 	 *   1. Check the driver initialised, using the generic
 	 *      device_is_ready() helper with the CAN device handle can_dev.
@@ -188,23 +203,36 @@ void run_command_node(void)
 	 *      with LOG_ERR() and return if so.
 	 *   2. Set the bitrate to CAN_BITRATE.
 	 *   3. Set the mode to CAN_MODE_NORMAL.
-	 *   4. Start the controller.
+	 *   4. Register bus_state_cb (declared above) as the state-change
+	 *      callback, passing NULL as its user data. This must come before
+	 *      the controller starts, so that the very first transition out
+	 *      of error-active is reported.
+	 *   5. Start the controller.
 	 *
-	 * Steps 2-4 are three separate CAN API calls, each taking can_dev as
+	 * Steps 2-5 are four separate CAN API calls, each taking can_dev as
 	 * their first argument. Find their names in the docs below.
 	 *
 	 * Both boards must use the same bitrate or they will not talk to
 	 * each other.
 	 *
-	 * Docs: can_set_bitrate(), can_set_mode(), can_start()
+	 * Docs: can_set_bitrate(), can_set_mode(),
+	 *       can_set_state_change_callback(), can_start()
 	 *   https://docs.zephyrproject.org/latest/doxygen/html/group__can__interface.html
 	 * What a CAN controller is doing underneath:
 	 *   https://docs.zephyrproject.org/latest/hardware/peripherals/can/controller.html
 	 */
 
-	/* Provided: heartbeat LED and the brightness output. */
-	gpio_pin_configure_dt(&heartbeat_led, GPIO_OUTPUT_INACTIVE);
-	lab_led_init();
+	/* Provided: the state-change callback only fires on a transition,
+	 * and starting on a healthy bus is not one, so seed the LED from
+	 * the current state. This runs after your TODO 3a code.
+	 */
+	{
+		enum can_state state = CAN_STATE_ERROR_ACTIVE;
+
+		(void)can_get_state(can_dev, &state, NULL);
+		gpio_pin_set_dt(&bus_led, state == CAN_STATE_ERROR_ACTIVE ? 1 : 0);
+	}
+
 
 	/*
 	 * TODO 3d: the ADC channel needs configuring once before it can be

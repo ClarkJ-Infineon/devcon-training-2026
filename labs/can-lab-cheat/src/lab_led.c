@@ -9,11 +9,11 @@
  *
  * One duty value, two outputs:
  *
- *   1. The user LED on P9.4 - silkscreen LED1, yellow, devicetree alias
+ *   1. The user LED on P8.4 - silkscreen LED3, yellow, devicetree alias
  *      led0 - bit-banged from a dedicated thread. Neither on-board user
  *      LED has a TCPWM option in its HSIOM pin-mux table, so a real PWM
  *      signal cannot be routed to them directly - hence the software PWM.
- *   2. The hardware PWM channel on P9.0, brought out on connector X19.
+ *   2. The hardware PWM channel on P5.0, brought out on header J21 pin 11.
  *      Nothing on the board lights up from this one, but the signal is
  *      genuinely there if you want to put a scope on it. This is why the
  *      lab has you enable the PWM nodes in devicetree and CONFIG_PWM in
@@ -38,7 +38,7 @@
 #include <zephyr/sys/util.h>
 
 #if !DT_NODE_EXISTS(DT_ALIAS(cmd_pwm))
-#error "No 'cmd-pwm' devicetree alias. Complete Step 1 (your board's overlay in boards/, TODO 1c) before building - see the lab guide."
+#error "No 'cmd-pwm' devicetree alias. Complete Step 1 (your board's overlay in boards/, TODO 1b) before building - see the lab guide."
 #endif
 
 #if !defined(CONFIG_PWM)
@@ -108,7 +108,7 @@ void lab_led_set_duty(uint8_t duty_0_255)
 {
 	atomic_set(&duty_atomic, duty_0_255);
 
-	/* Same duty on the real hardware PWM pin (P9.0 on X19). */
+	/* Same duty on the real hardware PWM pin (P5.0). */
 	(void)pwm_set_pulse_dt(&cmd_pwm,
 			       (uint32_t)((uint64_t)cmd_pwm.period * duty_0_255 / 255U));
 }

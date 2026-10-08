@@ -26,5 +26,25 @@ config LAB_ROLE_TELEMETRY
 
 endchoice
 
+config LAB_LED_TRIGMUX
+	bool "Drive the on-board LED from the TCPWM line via the PERI trigger mux"
+	depends on PWM
+	default y
+	help
+	  The default on-board LED drive path. P8.4 (LED3, alias led0) has no
+	  TCPWM option in its HSIOM pin-mux table, so the real PWM waveform is
+	  routed to it through the PSOC Control PERI trigger multiplexer, using
+	  the pin's PERI_TR_IO_OUTPUT60 option. Brightness then costs a single
+	  PWM register write, with no CPU in the signal path.
+
+	  Zephyr has no trigger-mux binding yet, so the route is made with a
+	  direct PDL Cy_TrigMux_Connect() call in src/lab_led_trigmux.c. The
+	  pin-mux half comes from boards/led_trigmux.overlay, which the
+	  application's CMakeLists.txt applies alongside this symbol.
+
+	  Turn this off with -DLED_SOFTPWM=y on the west build command line
+	  rather than editing a .conf file by hand; that selects the bit-banged
+	  soft-PWM fallback in src/lab_led_softpwm.c instead.
+
 source "Kconfig.zephyr"
 

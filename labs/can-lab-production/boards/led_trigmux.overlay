@@ -1,0 +1,39 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * PSOC Control CAN Command & Telemetry lab - trigger-mux LED overlay.
+ *
+ * Applied automatically on top of kit_psc3m6_evk.overlay unless the
+ * application is built with -DLED_SOFTPWM=y (see CMakeLists.txt).
+ *
+ * This is the pin-mux half of the trigger-mux route: P8.4 (LED3, alias
+ * led0) is switched from plain GPIO to its PERI_TR_IO_OUTPUT60 HSIOM
+ * option, so the trigger mux output made by Cy_TrigMux_Connect() in
+ * src/lab_led_trigmux.c actually reaches the pin.
+ *
+ * The new pin is appended to the PWM channel's own pinctrl-0 state so the
+ * TCPWM driver applies it during normal initialisation - no extra device
+ * and no extra driver are needed.
+ */
+
+#include <zephyr/dt-bindings/pinctrl/ifx_cat1-pinctrl.h>
+
+&pinctrl {
+	/*
+	 * HSIOM_SEL_ACT_15 is mode 27, which on P8.4 selects
+	 * PERI_TR_IO_OUTPUT60.
+	 */
+	p8_4_tr_io_output60: p8_4_tr_io_output60 {
+		pinmux = <DT_CAT1_PINMUX(8, 4, HSIOM_SEL_ACT_15)>;
+		drive-push-pull;
+	};
+};
+
+&gpio_prt8 {
+	status = "okay";
+};
+
+&pwm0_6 {
+	pinctrl-0 = <&p5_0_pwm0_6 &p8_4_tr_io_output60>;
+	pinctrl-names = "default";
+};

@@ -1,0 +1,91 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * PSOC Control CAN Command & Telemetry lab - devicetree overlay
+ * (skeleton) for KIT_PSC3M6_EVAL (PSOC Control C3M6 Evaluation Kit).
+ *
+ * This overlay is shared by both roles (Command node and Telemetry node) -
+ * the physical board is identical either way, only the application code
+ * built on top of it differs.
+ *
+ * The board devicetree already describes the hardware this lab drives:
+ *
+ *   - CAN FD on canfd0/can1 (P5.2 RX, P5.3 TX), with a can-transceiver-gpio
+ *     node (can_phy0, standby on P12.5) and `zephyr,canbus` already chosen.
+ *     Nothing in this file touches CAN.
+ *   - The on-board potentiometer as SAR ADC channel 12 on AN_B4, including
+ *     gain, reference, resolution and acquisition time.
+ *   - A hardware PWM output on P5.0 (tcpwm0_6 / pwm0_6), with its peripheral
+ *     clock divider and push-pull pinctrl.
+ *
+ * Your job is to nominate which of those this application consumes. A board
+ * describes what exists; an overlay says what your application uses.
+ *
+ *   TODO 1a: claim the potentiometer's ADC channel for the application.
+ *   TODO 1b: expose the PWM output as something the application can open
+ *            by name.
+ *
+ * Reference: the overlays under samples/basic/fade_led/boards/ in the Zephyr
+ * tree show how a PWM output is named and consumed on other boards, and
+ * tests/drivers/adc/adc_api/boards/ shows ADC channels being claimed.
+ *
+ * Docs: what an overlay is and why it exists
+ *   https://docs.zephyrproject.org/latest/build/dts/intro.html
+ * Every property you can legally set on a node is defined by its binding,
+ * and all of the in-tree bindings are published here - searching this page
+ * for a `compatible` string is the fastest way to answer "what goes in
+ * this node?":
+ *   https://docs.zephyrproject.org/latest/build/dts/api/bindings.html
+ */
+
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	/*
+	 * TODO 1a: Uncomment the io-channels property below so the
+	 * application can request the potentiometer channel by name. The pot
+	 * is SAR ADC channel 12, on AN_B4 - the first input of mux sampler 0.
+	 *
+	 * Docs: how `io-channels` ties an application to an ADC channel, and
+	 * what ADC_DT_SPEC_GET() does with it:
+	 *   https://docs.zephyrproject.org/latest/hardware/peripherals/adc.html
+	 */
+	zephyr,user {
+		// io-channels = <&adc0 12>;
+	};
+
+	aliases {
+		/*
+		 * TODO 1b (cont'd): alias the PWM LED node below so the
+		 * application's DT_ALIAS(cmd_pwm) resolves.
+		 */
+		// cmd-pwm = &pwm_cmd;
+	};
+
+	/*
+	 * TODO 1b: uncomment this whole "pwmleds" block (and give it a real
+	 * "pwms" property) so the PWM output can be opened by name. A
+	 * pwm-leds node with no "pwms" property fails devicetree validation,
+	 * so it must stay fully commented out until then.
+	 *
+	 * The output is P5.0, brought out on header J21 pin 11, next to the
+	 * CAN pins (P5.2/P5.3). It is an ordinary signal pin, safe to probe
+	 * or to drive a 2-pin LED harness (GND is on J21 pin 2).
+	 *
+	 * The on-board LED this lab mirrors the setpoint on is driven
+	 * separately, in software - the user LEDs on P8.4/P8.5 have no TCPWM
+	 * route in this package.
+	 *
+	 * Docs: the PWM subsystem and its devicetree model
+	 *   https://docs.zephyrproject.org/latest/hardware/peripherals/pwm.html
+	 *
+	 * pwmleds {
+	 *	compatible = "pwm-leds";
+	 *
+	 *	pwm_cmd: pwm_cmd_led {
+	 *		label = "Command PWM output (P5.0)";
+	 *		pwms = <&pwm0_6 0 PWM_USEC(1000) PWM_POLARITY_NORMAL>;
+	 *	};
+	 * };
+	 */
+};

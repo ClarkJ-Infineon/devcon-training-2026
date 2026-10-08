@@ -5,8 +5,9 @@
  * (full reference solution).
  *
  * Reads the onboard potentiometer, derives a 0-255 setpoint, drives the
- * local brightness output (user LED on P9.4 plus the PWM pin P9.0), and transmits the
- * setpoint over CAN so the paired "Telemetry node" board can mirror it.
+ * local brightness output (user LED on P8.4 plus the PWM pin P5.0), and
+ * transmits the setpoint over CAN so the paired "Telemetry node" board can
+ * mirror it.
  *
  * PRODUCTION TIER. This is not one of the three difficulty tiers and has no
  * TODOs - nobody writes this during the hour. It is how the same application
@@ -40,7 +41,31 @@ LOG_MODULE_REGISTER(command_node, LOG_LEVEL_INF);
 #define SAMPLE_PERIOD_MS 50
 #define CAN_BITRATE      500000
 
-static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+/*
+ * Bus-state indicator on LED4 (P8.5, alias led1).
+ *
+ * Lit means the controller is error-active, which is the healthy state. It
+ * goes dark the moment the controller drops to error-passive or bus-off -
+ * which is what a node alone on the bus, or one whose bitrate disagrees with
+ * its partner, does within a second or two. The lab's central failure mode,
+ * made physical, without needing the console.
+ *
+ * This works here because the command node transmits: unacknowledged frames
+ * drive the transmit error counter up. The telemetry node cannot use the same
+ * signal and blinks on reception instead - see telemetry_node.c.
+ */
+static const struct gpio_dt_spec bus_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+
+static void bus_state_cb(const struct device *dev, enum can_state state,
+			 struct can_bus_err_cnt err_cnt, void *user_data)
+{
+	ARG_UNUSED(dev);
+	ARG_UNUSED(err_cnt);
+	ARG_UNUSED(user_data);
+
+	/* Runs in driver context, so it does nothing but set a pin. */
+	gpio_pin_set_dt(&bus_led, state == CAN_STATE_ERROR_ACTIVE ? 1 : 0);
+}
 
 static const struct adc_dt_spec pot_adc = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
@@ -170,8 +195,6 @@ static void send_setpoint(uint8_t setpoint)
 			"is on the bus", fails);
 		fails = 0U;
 	}
-
-	gpio_pin_toggle_dt(&heartbeat_led);
 }
 
 void run_command_node(void)
@@ -197,12 +220,27 @@ void run_command_node(void)
 		return;
 	}
 
+	/* Must be registered before the controller starts, so that the very
+	 * first transition out of error-active is reported.
+	 */
+	gpio_pin_configure_dt(&bus_led, GPIO_OUTPUT_INACTIVE);
+	can_set_state_change_callback(can_dev, bus_state_cb, NULL);
+
 	err = can_start(can_dev);
 	if (err != 0) {
 		LOG_ERR("can_start() failed (%d)", err);
 		return;
 	}
 
+	/* The callback only fires on a transition, and starting on a healthy
+	 * bus is not one, so seed the LED from the current state.
+	 */
+	{
+		enum can_state state = CAN_STATE_ERROR_ACTIVE;
+
+		(void)can_get_state(can_dev, &state, NULL);
+		gpio_pin_set_dt(&bus_led, state == CAN_STATE_ERROR_ACTIVE ? 1 : 0);
+	}
 	/* Listen for setpoint frames we did not send - see the comment on
 	 * peer_setpoint_frames above. Non-fatal: a full filter bank costs us
 	 * the diagnostic, not the lab.
@@ -218,9 +256,7 @@ void run_command_node(void)
 			"continuing without that check", err);
 	}
 
-	gpio_pin_configure_dt(&heartbeat_led, GPIO_OUTPUT_INACTIVE);
 	lab_led_init();
-
 	adc_channel_setup_dt(&pot_adc);
 
 	while (1) {
@@ -236,8 +272,9 @@ void run_command_node(void)
 				(setpoint * 100U) / 255U);
 		}
 
-		/* Local brightness feedback: the user LED on P9.4 plus the
-		 * hardware PWM pin P9.0 on X19, both driven by the helper.
+		/* Local brightness feedback: the user LED on P8.4 plus the
+		 * hardware PWM pin P5.0 on header J21 pin 11, both driven
+		 * by the helper.
 		 */
 		lab_led_set_duty(setpoint);
 

@@ -5,7 +5,7 @@
 # Build from the workspace set up in the
 # 2-hour Zephyr intro session):
 #
-#   west build -b kit_psc3m5_cc2 -d build/lab -s <path-to-this-dir> -- \
+#   west build -b kit_psc3m6_evk -d build/lab -s <path-to-this-dir> -- \
 #       -DEXTRA_CONF_FILE=conf/role_command.conf
 #
 # See ../../README.md and the lab guide for full instructions.

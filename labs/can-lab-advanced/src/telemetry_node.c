@@ -7,10 +7,10 @@
  * mirrors it on the local LED - "command sent over the wire, remote node
  * responds."
  *
- * This is the file you write. There are three TODOs; each one is a small
+ * This is the file you write. There are four TODOs; each one is a small
  * piece of real Zephyr API code. The lab guide walks through them in order.
- * Everything else - the LED helper, the CAN wire format, the heartbeat
- * blink - is provided.
+ * Everything else - the LED helper, the CAN wire format, the receive-activity
+ * LED - is provided.
  *
  * ADVANCED TIER. Each TODO says which API to use and what it has to do, and
  * links to the reference docs - but never the line to type. If that is not
@@ -65,18 +65,61 @@ LOG_MODULE_REGISTER(telemetry_node, LOG_LEVEL_INF);
 #define CAN_BITRATE 500000
 #define RX_TIMEOUT  K_MSEC(500)
 
-/* Alias led1 - P9.5, silkscreen LED2, red - toggles on every CAN frame
- * received. The board silkscreen counts from one, the devicetree aliases
+/* Half-period of the receive heartbeat, so the LED blinks at about 1 Hz. */
+#define ACTIVITY_BLINK_MS 500
+
+/* Alias led1 - P8.5, silkscreen LED4, blue - the receive-activity indicator.
+ *
+ * Blinking at about 1 Hz means setpoint frames are arriving; dark means they
+ * have stopped. The board silkscreen counts from one, the devicetree aliases
  * count from zero. Provided.
+ *
+ * Note that the command node drives this same LED from a different signal:
+ * the CAN controller's error state. That is deliberate, not an oversight.
+ * Error state tells a receiver almost nothing - a node that only receives
+ * never transmits, so it never collects transmit errors, and pulling the bus
+ * wires leaves it error-active with the LED stuck on. Blinking on reception
+ * is the honest signal here, and it has the useful side effect of telling you
+ * which board is which from across the room.
  */
-static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+static const struct gpio_dt_spec activity_led = GPIO_DT_SPEC_GET(DT_ALIAS(led1), gpios);
+
+/* Provided. enum can_state has no string helper in the Zephyr API, so this is
+ * the lab's own. These are the standard CAN error-confinement states, and the
+ * parenthetical on each is what it means in this room.
+ */
+static const char *state_name(enum can_state state)
+{
+	switch (state) {
+	case CAN_STATE_ERROR_ACTIVE:
+		return "error-active (bus is healthy - nobody is transmitting)";
+	case CAN_STATE_ERROR_WARNING:
+		return "error-warning (errors on the wire)";
+	case CAN_STATE_ERROR_PASSIVE:
+		return "error-passive (errors on the wire)";
+	case CAN_STATE_BUS_OFF:
+		return "bus-off";
+	case CAN_STATE_STOPPED:
+		return "stopped - the controller was never started";
+	default:
+		return "unknown";
+	}
+}
 
 static const struct device *const can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 
 /* Received frames are queued here by the CAN driver so the main loop can
  * pull them off at its own pace. Provided.
  */
-CAN_MSGQ_DEFINE(setpoint_msgq, 4);
+/*
+ * Depth 16, not 4. Setpoints arrive at a steady 20 Hz, which one frame of
+ * queue would absorb - but reconnecting a pulled CAN wire flushes the command
+ * node's transmit FIFO in one burst, and a shallow queue drops frames and
+ * prints `can_common: Msgq overflowed` the moment the lab starts working
+ * again. The lab guide asks you to pull that wire, so the burst is a normal
+ * event here rather than an exceptional one.
+ */
+CAN_MSGQ_DEFINE(setpoint_msgq, 16);
 
 static uint8_t unpack_setpoint(const struct can_frame *frame)
 {
@@ -98,6 +141,12 @@ static uint8_t unpack_setpoint(const struct can_frame *frame)
 void run_telemetry_node(void)
 {
 	LOG_INF("Telemetry node starting (PSOC Control CAN lab)");
+
+	/* Provided: the activity LED and the brightness output. The LED starts
+	 * dark; the receive loop below blinks it once frames arrive.
+	 */
+	gpio_pin_configure_dt(&activity_led, GPIO_OUTPUT_INACTIVE);
+	lab_led_init();
 
 	/*
 	 * TODO 3a: bring up the CAN controller. Four calls, in this order:
@@ -142,13 +191,11 @@ void run_telemetry_node(void)
 	 *   https://docs.zephyrproject.org/latest/doxygen/html/structcan__filter.html
 	 */
 
-	/* Provided: heartbeat LED and the brightness output. */
-	gpio_pin_configure_dt(&heartbeat_led, GPIO_OUTPUT_INACTIVE);
-	lab_led_init();
 
 	struct can_frame frame;
 	bool link_up = false;
 	int64_t last_log = 0;
+	int64_t last_blink = 0;
 
 	while (1) {
 		if (k_msgq_get(&setpoint_msgq, &frame, RX_TIMEOUT) != 0) {
@@ -158,7 +205,39 @@ void run_telemetry_node(void)
 					"powered and wired?",
 					(int)k_ticks_to_ms_floor32(RX_TIMEOUT.ticks));
 				link_up = false;
+
+				/*
+				 * TODO 3d, part 1 of 2: say why the data stopped,
+				 * and stop the heartbeat.
+				 *
+				 *   1. Declare an `enum can_state` and ask the
+				 *      controller to fill it in with can_get_state().
+				 *      It takes can_dev, a pointer to your state, and
+				 *      NULL for the error counters you do not need.
+				 *   2. LOG_WRN() the result through the provided
+				 *      state_name() helper.
+				 *   3. Drive activity_led dark with gpio_pin_set_dt()
+				 *      and reset last_blink to 0, so the stall is
+				 *      visible from the back of the room as well as
+				 *      on the console.
+				 *
+				 * That first call is the one piece of information
+				 * this node cannot get any other way, and it is the
+				 * reason it is worth asking for. A receiver never
+				 * transmits, so it never collects transmit errors -
+				 * pull the bus wires and it stays error-active and
+				 * simply hears silence. "The bus looks healthy and
+				 * nothing is arriving" and "the bus is in trouble"
+				 * are completely different faults that look identical
+				 * from here until you ask.
+				 *
+				 * Docs: can_get_state() and the controller states
+				 *   https://docs.zephyrproject.org/latest/doxygen/html/group__can__interface.html
+				 * Error confinement, and what each state means:
+				 *   https://docs.zephyrproject.org/latest/hardware/peripherals/can/controller.html
+				 */
 			}
+
 			continue;
 		}
 
@@ -166,19 +245,35 @@ void run_telemetry_node(void)
 
 		lab_led_set_duty(setpoint);
 
-		gpio_pin_toggle_dt(&heartbeat_led);
-
 		if (!link_up) {
 			LOG_INF("CAN link up - receiving setpoints");
 			link_up = true;
 		}
 
+		int64_t now = k_uptime_get();
+
+		/*
+		 * TODO 3d, part 2 of 2: blink LED4 while frames are arriving.
+		 *
+		 * Toggle activity_led with gpio_pin_toggle_dt(), but only once
+		 * ACTIVITY_BLINK_MS has passed since the last toggle - compare
+		 * `now` against the `last_blink` declared above, exactly the
+		 * way the provided console rate-limit below compares against
+		 * `last_log`, and update last_blink when you toggle.
+		 *
+		 * Do not simply toggle once per frame. Setpoints arrive at
+		 * 20 Hz, and a 20 Hz toggle reads to the eye as a steady dim
+		 * glow rather than as activity - which is exactly the signal
+		 * you are trying not to send.
+		 *
+		 * Docs: gpio_pin_toggle_dt()
+		 *   https://docs.zephyrproject.org/latest/doxygen/html/group__gpio__interface.html
+		 */
+
 		/* Rate-limited to ~2 Hz so the console stays readable. Until
 		 * TODO 3c is done this prints a constant 128 - that is the
 		 * placeholder, not a broken bus. Provided.
 		 */
-		int64_t now = k_uptime_get();
-
 		if (now - last_log >= 500) {
 			last_log = now;
 			LOG_INF("setpoint %u (%u%%)", setpoint, (setpoint * 100U) / 255U);
