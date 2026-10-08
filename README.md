@@ -113,7 +113,9 @@ The pinned `devcon-training-2026` branch adds the following to mainline Zephyr:
   without a clock divider previously built cleanly and silently produced no
   output.
 - The PDL DMA driver no longer reports a benign underrun as an error.
-- `kit_psc3m5_cc2` user LED polarity is corrected.
+
+This list covers what the labs exercise; the branch also carries a few board
+fixes for hardware not used at this event.
 
 ## E84 labs require `--sysbuild`
 

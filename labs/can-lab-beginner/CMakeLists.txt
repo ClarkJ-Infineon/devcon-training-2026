@@ -3,7 +3,7 @@
 # PSOC Control CAN Command & Telemetry lab - skeleton application.
 #
 # Build from the workspace set up in the
-# 2-hour Zephyr intro session):
+# Software General Session (Zephyr):
 #
 #   west build -b kit_psc3m6_evk -d build/lab -s <path-to-this-dir> -- \
 #       -DEXTRA_CONF_FILE=conf/role_command.conf
