@@ -34,13 +34,19 @@ That third one is the only proof that matters. The first two can look perfectly 
 
 Zephyr needs eight command-line tools on Windows. Installing them by hand is tedious and several of the usual routes do not work on a managed laptop, so there is a script:
 
-**`https://gitlab.intra.infineon.com/JarvisC/zephyr-windows-training-prereqs`**
+**`https://github.com/luisreynosoIFX/mtb-training-devcon-americas-2026/tree/main/zephyr`**
 
-Download or clone it, then from a **regular, non-admin** PowerShell window:
+Open that folder, click **`zephyr-windows-training-prereqs.zip`**, then use the download button on the file page. Extract it anywhere you can find again — `Downloads` or `Desktop` is fine. You will get a folder named `zephyr-windows-training-prereqs-main`.
+
+> **Download the zip, do not `git clone` the repo.** That zip is stored with Git LFS, so cloning without Git LFS installed hands you a 132-byte text placeholder named like the zip instead of the real file. The genuine download is about **1.3 MB**. If yours is a kilobyte or opens as text, that is what happened — go back and download it from the file page.
+
+From a **regular, non-admin** PowerShell window, `cd` into the extracted folder and run:
 
 ```
 powershell -ExecutionPolicy Bypass -File .\setup-zephyr-windows-deps.ps1
 ```
+
+Keep `setup-zephyr-windows-deps.ps1` and `gperf-dtc-windows-bundle.zip` together in that folder — the script reads the bundle from alongside itself. Extracting the zip does this for you; moving the script out on its own breaks it.
 
 Close and reopen your terminal when it finishes. Everything it installs goes into your user profile — no admin rights, no registry changes.
 
@@ -58,7 +64,7 @@ Close and reopen your terminal when it finishes. Everything it installs goes int
   [OK] dtc      Version: DTC 1.7.2
 ```
 
-If any line says `[MISSING]`, reopen your terminal and run the script once more — it skips what is already installed and retries only what is not. The repo's README covers the handful of things that can go wrong; work through it before the session rather than during it.
+If any line says `[MISSING]`, reopen your terminal and run the script once more — it skips what is already installed and retries only what is not. The `README.md` inside the zip covers the handful of things that can go wrong; work through it before the session rather than during it.
 
 ### Your debug probe software
 
