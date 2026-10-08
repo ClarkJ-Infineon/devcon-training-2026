@@ -23,7 +23,7 @@ pip install -r zephyr/scripts/requirements-base.txt imgtool
 |---|---|
 | `pip install west` | Installs west itself. Reopen your terminal afterwards if `west` is not found. |
 | `west init -m <url> devcon-ws` | Fetches only the manifest — a small file naming which repositories are needed and which commit of each. Seconds. |
-| `west update --narrow` | Fetches those repositories. **This is the 1.0 GB**, roughly five minutes on a good connection. If it drops, run it again; it resumes. |
+| `west update --narrow` | Fetches those repositories. **This is the bulk of the download** — about 250 MB over the network, landing as 1.0 GB on disk. Roughly five minutes on a good connection. If it drops, run it again; it resumes. |
 | `west sdk install -t arm-zephyr-eabi` | Installs the Arm toolchain. `west sdk` is provided by the Zephyr repository, so the command does not exist until the step above completes. |
 | `pip install -r zephyr/scripts/requirements-base.txt imgtool` | Installs the Python packages the build uses to generate devicetree and Kconfig output and to sign images. `requirements-base.txt` lives inside the Zephyr repository, so this is likewise only possible afterwards. |
 
@@ -67,9 +67,11 @@ cannot select one vendor. This manifest therefore lists projects explicitly:
 | `lvgl` | graphics library for the E84 display and dashboard labs |
 
 No `segger`, no other vendor HALs, and no babblesim, TF-M or testing-only
-modules. `west update --narrow` fetches approximately **1.0 GB**, against
-**7.9 GB** for upstream Zephyr's complete default manifest. Adding the Zephyr
-SDK brings the workspace to roughly **2.5 GB** in total.
+modules. `west update --narrow` transfers roughly **250 MB** and lands as
+**1.0 GB** on disk, against **7.9 GB** on disk for upstream Zephyr's complete
+default manifest. The Zephyr SDK is a further **175 MB** download that expands
+to about **1.5 GB**, bringing the workspace to roughly **2.5 GB** on disk in
+total — around **425 MB** of actual downloading.
 
 `zephyr` is pinned by commit SHA rather than branch name, so a given commit of
 this manifest always resolves to one exact Zephyr tree.

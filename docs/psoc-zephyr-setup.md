@@ -14,7 +14,7 @@
 
 Most of this session is a presentation: what Zephyr is, how it is put together, and why it looks the way it does. The hands-on part is smaller, but it has a hard deadline — the advanced sessions later this week assume you walk in with a working workspace, and there is no time in those hours to build one.
 
-There is one scheduling fact that shapes everything below. **Setting up a Zephyr workspace means downloading about 2.5 GB**, and no amount of cleverness makes that instant. So you start the download in the first few minutes, leave it running while the presentation happens, and come back to it.
+There is one scheduling fact that shapes everything below. **Setting up a Zephyr workspace pulls about 425 MB down the wire and leaves roughly 2.5 GB on disk**, and no amount of cleverness makes that instant. So you start the download in the first few minutes, leave it running while the presentation happens, and come back to it.
 
 **Do not wait to be told to start.** §3 is the first thing you do when you sit down.
 
@@ -121,7 +121,7 @@ west update --narrow
 | Command | What happens |
 | --- | --- |
 | `west init -m <url> devcon-ws` | Creates a `devcon-ws` folder and fetches **only the manifest** — a small file naming which repositories this training needs and exactly which commit of each. Seconds, not minutes. |
-| `west update --narrow` | Fetches those repositories. **This is the 1.0 GB**, and takes roughly five minutes on a good connection. Leave it running. |
+| `west update --narrow` | Fetches those repositories. **This is the bulk of the download** — about 250 MB over the network, landing as 1.0 GB on disk. Roughly five minutes on a good connection. Leave it running. |
 
 **`--narrow` is not optional advice.** Without it, west fetches every branch and every tag of every repository instead of just the one commit the manifest pins. It is the difference between a download that finishes during this session and one that does not.
 
@@ -129,15 +129,15 @@ Once `west update` is running, **leave that window alone and go and listen.** No
 
 > **If it fails partway through**, just run `west update --narrow` again. It resumes rather than starting over, so a dropped connection costs you only what was in flight.
 
-### Why it is only 1.0 GB
+### Why it is this small
 
 Two things are working here, and they are independent.
 
-**The project list is trimmed.** Upstream Zephyr's default manifest pulls in every vendor's hardware support — ST, NXP, Nordic, Espressif, all of it — because upstream has no way to ask for one vendor's worth. That is roughly 7.9 GB, and you would use none of it this week. The manifest you just used names its projects explicitly instead: the training fork of Zephyr, Infineon's hardware abstraction layer, ARM's CMSIS headers, and LVGL for the graphics lab. Nothing else.
+**The project list is trimmed.** Upstream Zephyr's default manifest pulls in every vendor's hardware support — ST, NXP, Nordic, Espressif, all of it — because upstream has no way to ask for one vendor's worth. That is roughly 7.9 GB on disk, and you would use none of it this week. The manifest you just used names its projects explicitly instead: the training fork of Zephyr, Infineon's hardware abstraction layer, ARM's CMSIS headers, and LVGL for the graphics lab. Nothing else.
 
 **No history is fetched.** Every project in the manifest sets `clone-depth: 1`, so each repository arrives as the single pinned commit with no history behind it. You are building against that exact commit, so the history buys you nothing in this room. If you later want it for a given project, `git fetch --unshallow` inside that project recovers it.
 
-Together: **1.0 GB instead of 7.9 GB**, almost all of it saved on this room's WiFi.
+Together: **1.0 GB on disk instead of 7.9 GB**, and only about 250 MB of it crosses this room's WiFi.
 
 ---
 
@@ -145,7 +145,7 @@ Together: **1.0 GB instead of 7.9 GB**, almost all of it saved on this room's Wi
 
 You now have Zephyr's source. You do not yet have a compiler.
 
-The **Zephyr SDK** is that compiler. It is *not* part of the manifest you just downloaded and it is not something Infineon provides — it is the Zephyr project's own cross-toolchain, and it is a second download of about 1.5 GB.
+The **Zephyr SDK** is that compiler. It is *not* part of the manifest you just downloaded and it is not something Infineon provides — it is the Zephyr project's own cross-toolchain. `-t arm-zephyr-eabi` asks for only the ARM toolchain rather than every architecture the SDK supports, which makes it a second download of about 175 MB that expands to roughly 1.5 GB on disk.
 
 Run this from inside `devcon-ws`:
 

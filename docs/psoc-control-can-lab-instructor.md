@@ -16,7 +16,7 @@ Companion to `lab-guide.md`, written for whoever is running the session. Section
 | The CAN harness is made up | Three wires per pair: CANH, CANL, GND, CAN connector to CAN connector |
 | You have run the pair yourself, in front of them, once | See §2 below |
 
-The workspace is the single biggest risk to the hour and it cannot be fixed in the room — `west update` alone is a 1.0 GB download. Anyone who arrives without one should be paired immediately rather than left to catch up.
+The workspace is the single biggest risk to the hour and it cannot be fixed in the room — building one from scratch means roughly 425 MB of downloads and 2.5 GB on disk. Anyone who arrives without one should be paired immediately rather than left to catch up.
 
 Flashing needs no configuration on this board; the kit's onboard J-Link is enough. That removes the one setup problem that used to survive a successful build, so attendee §3 is now a genuinely quick check.
 
