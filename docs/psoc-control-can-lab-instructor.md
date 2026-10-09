@@ -16,17 +16,17 @@ Companion to `lab-guide.md`, written for whoever is running the session. Section
 | The CAN harness is made up | Three wires per pair: CANH, CANL, GND, CAN connector to CAN connector |
 | You have run the pair yourself, in front of them, once | See §2 below |
 
-The workspace is the single biggest risk to the hour and it cannot be fixed in the room — building one from scratch means roughly 425 MB of downloads and 2.5 GB on disk. Anyone who arrives without one should be paired immediately rather than left to catch up.
+The workspace is the single biggest risk to the hour and it cannot be fixed in the room — building one from scratch means roughly 457 MB of downloads and 2.7 GB on disk. Anyone who arrives without one should be paired immediately rather than left to catch up.
 
 Flashing needs no configuration on this board; the kit's onboard J-Link is enough. That removes the one setup problem that used to survive a successful build, so attendee §3 is now a genuinely quick check.
 
-**The one J-Link failure worth knowing in advance.** Zephyr finds the J-Link install by reading the path SEGGER writes to the registry, and SEGGER writes whichever version was installed **last** — not the newest. An attendee who installed a current J-Link and then let some other toolchain pull in an older one will have a stale path, and `west flash` fails with an obscure DLL or "unsupported device" error on a board that is otherwise fine. The floor for this board is **V9.68**. Have them check with:
+**The one J-Link failure worth knowing in advance.** Zephyr finds the J-Link install by reading the path SEGGER writes to the registry, and SEGGER writes whichever version was installed **last** — not the newest. An attendee who installed a current J-Link and then let some other toolchain pull in an older one will have a stale path, and `west flash` fails with an obscure DLL or "unsupported device" error on a board that is otherwise fine. The floor for this board is **V9.78**, the first release carrying its `PSC3M6GES3AH` device entry. Have them check with:
 
 ```powershell
 (Get-Item "$((Get-ItemProperty HKCU:\Software\SEGGER\J-Link).InstallPath)\JLink.exe").VersionInfo.ProductVersion
 ```
 
-If that prints something below V9.68, re-running the current J-Link installer fixes it by rewriting the registry path — no uninstall needed.
+If that prints something below V9.78, re-running the current J-Link installer fixes it by rewriting the registry path — no uninstall needed.
 
 **This lab fails differently from a solo lab.** One attendee falling behind strands a second one who did nothing wrong. Watch for a board that has not flashed by the 35-minute mark and move that person to `can-lab-cheat` without making it a conversation.
 

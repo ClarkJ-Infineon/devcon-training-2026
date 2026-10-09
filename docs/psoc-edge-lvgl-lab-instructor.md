@@ -15,7 +15,7 @@ Companion to `lab-guide.md`, written for whoever is running the session. Section
 | Each bench has a KIT_PSE84_EVAL with the 4.3" panel attached | Panel is MIPI-DSI with capacitive touch |
 | You have flashed a board yourself, in front of them, once | Sets the target behaviour and removes "is my hardware broken?" as a variable |
 
-The workspace is the single biggest risk to the hour, and it is not something that can be fixed in the room — building one from scratch means roughly 425 MB of downloads and 2.5 GB on disk. Anyone who arrives without one should be paired with a neighbour immediately rather than left to catch up.
+The workspace is the single biggest risk to the hour, and it is not something that can be fixed in the room — building one from scratch means roughly 457 MB of downloads and 2.7 GB on disk. Anyone who arrives without one should be paired with a neighbour immediately rather than left to catch up.
 
 The in-room check that matters most is the flash configuration. A workspace missing the `west config build.cmake-args` line builds perfectly and cannot flash, and the attendee will not discover it until build #1 is already done. §3 item 2 catches it in ten seconds.
 

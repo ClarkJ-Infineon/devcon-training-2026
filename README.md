@@ -16,16 +16,20 @@ west init -m https://github.com/ClarkJ-Infineon/devcon-training-2026 devcon-ws
 cd devcon-ws
 west update --narrow
 west sdk install -t arm-zephyr-eabi
-pip install -r zephyr/scripts/requirements-base.txt imgtool
+pip install -r devcon-training-2026/requirements-devcon.txt
 ```
 
 | Step | What it does |
 |---|---|
 | `pip install west` | Installs west itself. Reopen your terminal afterwards if `west` is not found. |
 | `west init -m <url> devcon-ws` | Fetches only the manifest — a small file naming which repositories are needed and which commit of each. Seconds. |
-| `west update --narrow` | Fetches those repositories. **This is the bulk of the download** — about 250 MB over the network, landing as 1.0 GB on disk. Roughly five minutes on a good connection. If it drops, run it again; it resumes. |
+| `west update --narrow` | Fetches those repositories. **This is the bulk of the download** — about 282 MB over the network, landing as 1.24 GB on disk. Roughly six minutes on a good connection. If it drops, run it again; it resumes. |
 | `west sdk install -t arm-zephyr-eabi` | Installs the Arm toolchain. `west sdk` is provided by the Zephyr repository, so the command does not exist until the step above completes. |
-| `pip install -r zephyr/scripts/requirements-base.txt imgtool` | Installs the Python packages the build uses to generate devicetree and Kconfig output and to sign images. `requirements-base.txt` lives inside the Zephyr repository, so this is likewise only possible afterwards. |
+| `pip install -r devcon-training-2026/requirements-devcon.txt` | Installs the Python packages the build uses to generate devicetree and Kconfig output and to sign images. It chains Zephyr's own `requirements-base.txt`, which lives inside the Zephyr repository, so this is likewise only possible afterwards. |
+
+> Do not substitute `pip install -r zephyr/scripts/requirements.txt`. That file
+> is the umbrella for Zephyr's CI tiers and pulls roughly 184 MB of packages —
+> OpenCV, SciPy, NumPy, pyOCD — that nothing in this training uses.
 
 `--narrow` fetches just the pinned revision of each project rather than every
 branch and tag. The manifest additionally sets `clone-depth: 1` on every
@@ -49,7 +53,8 @@ half-programmed state.
 
 **The PSOC™ Control CAN lab does not need this.** `kit_psc3m6_evk` defaults to
 the `jlink` runner and flashes through the board's onboard SEGGER J-Link with
-a stock Zephyr toolchain. J-Link software **V9.68 or newer** is required.
+a stock Zephyr toolchain. J-Link software **V9.78 or newer** is required, the
+first release carrying this board's `PSC3M6GES3AH` device entry.
 Infineon OpenOCD remains available on that board as an alternate runner via
 `west flash --runner openocd`.
 
@@ -65,13 +70,17 @@ cannot select one vendor. This manifest therefore lists projects explicitly:
 | `hal_infineon` | PSOC™ Control and PSOC™ Edge PDL/HAL |
 | `cmsis`, `cmsis_6` | ARM CMSIS core headers, required by `hal_infineon` |
 | `lvgl` | graphics library for the E84 display and dashboard labs |
+| `mcuboot`, `trusted-firmware-m`, `mbedtls`, `tf-psa-crypto` | not used by any lab; present so the PSOC™ Edge class can demonstrate multi-core, TF-M and MCUboot without a second download |
 
-No `segger`, no other vendor HALs, and no babblesim, TF-M or testing-only
-modules. `west update --narrow` transfers roughly **250 MB** and lands as
-**1.0 GB** on disk, against **7.9 GB** on disk for upstream Zephyr's complete
+No `segger`, no other vendor HALs, no babblesim and no testing-only modules.
+Upstream's `tee` and `crypto` groups additionally carry
+`tf-psa-crypto-drivers`, `mldsa-native`, `tf-m-tests` and `psa-arch-tests`;
+none of them are needed and all are omitted.
+`west update --narrow` transfers roughly **282 MB** and lands as
+**1.24 GB** on disk, against **7.9 GB** on disk for upstream Zephyr's complete
 default manifest. The Zephyr SDK is a further **175 MB** download that expands
-to about **1.5 GB**, bringing the workspace to roughly **2.5 GB** on disk in
-total — around **425 MB** of actual downloading.
+to about **1.5 GB**, bringing the workspace to roughly **2.7 GB** on disk in
+total — around **457 MB** of actual downloading.
 
 `zephyr` is pinned by commit SHA rather than branch name, so a given commit of
 this manifest always resolves to one exact Zephyr tree.

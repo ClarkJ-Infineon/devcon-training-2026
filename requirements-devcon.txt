@@ -1,0 +1,25 @@
+# DevCon Americas 2026 - Zephyr training Python dependencies
+#
+# Run once from the workspace root (devcon-ws), after `west update`:
+#
+#     pip install -r devcon-training-2026/requirements-devcon.txt
+#
+# Deliberately NOT `pip install -r zephyr/scripts/requirements.txt`. That
+# umbrella file pulls Zephyr's CI tiers (build-test, run-test, extras,
+# compliance): opencv-python, scipy, numpy, pyocd, spsdk, Pillow, plotly,
+# mypy, pylint, clang-format - about 184 MB of wheels the labs never use.
+#
+# Nested paths below are resolved by pip relative to THIS file, so the
+# layout devcon-ws/{zephyr, devcon-training-2026} is what makes them work.
+
+# Zephyr's build-time dependencies: devicetree, Kconfig, west, pyelftools,
+# PyYAML, jsonschema, intelhex.
+-r ../zephyr/scripts/requirements-base.txt
+
+# MCUboot image signing. Also supplies the crypto stack that the TF-M
+# build uses: cryptography, click, cbor2, pyasn1.
+imgtool
+
+# Used by the TF-M and MCUboot build steps; not covered by the two above.
+jinja2
+setuptools

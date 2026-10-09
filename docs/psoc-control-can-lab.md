@@ -161,7 +161,7 @@ Wire the LED's **anode (longer leg) to J21 pin 11**, and its **cathode through a
 
 ### Two more board facts
 
-**Flashing needs no special setup.** The kit carries an onboard SEGGER J-Link, so `west flash` finds the board on its own. It does require J-Link software **V9.68 or later** — older versions cannot describe this debug architecture and fail with an `Unsupported value for 'Type' parameter` error.
+**Flashing needs no special setup.** The kit carries an onboard SEGGER J-Link, so `west flash` finds the board on its own. It does require J-Link software **V9.78 or later** — that is the first release carrying the `PSC3M6GES3AH` device entry this board flashes through, and older versions fail with an `Unsupported value for 'Type' parameter` error.
 
 **CAN needs no wiring beyond the pair.** The board carries its own CAN transceiver, already described in the board devicetree along with the standby line that enables it. You connect two boards and nothing else.
 

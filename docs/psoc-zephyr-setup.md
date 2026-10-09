@@ -14,7 +14,7 @@
 
 Most of this session is a presentation: what Zephyr is, how it is put together, and why it looks the way it does. The hands-on part is smaller, but it has a hard deadline — the advanced sessions later this week assume you walk in with a working workspace, and there is no time in those hours to build one.
 
-There is one scheduling fact that shapes everything below. **Setting up a Zephyr workspace pulls about 425 MB down the wire and leaves roughly 2.5 GB on disk**, and no amount of cleverness makes that instant. So you start the download in the first few minutes, leave it running while the presentation happens, and come back to it.
+There is one scheduling fact that shapes everything below. **Setting up a Zephyr workspace pulls about 457 MB down the wire and leaves roughly 2.7 GB on disk**, and no amount of cleverness makes that instant. So you start the download in the first few minutes, leave it running while the presentation happens, and come back to it.
 
 **Do not wait to be told to start.** §3 is the first thing you do when you sit down.
 
@@ -84,7 +84,7 @@ dir C:\Infineon\Tools\ModusToolboxProgtools-1.9\openocd\bin\openocd.exe
 
 It is worth knowing *why* the OpenOCD one matters, because this catches people. The copy of OpenOCD that comes with the Zephyr toolchain is the generic upstream build — it knows about PSOC™ 4 and PSOC™ 6, but it has no target support for PSOC™ Edge and no KitProg3 support either. Infineon's build has all of it, and you point Zephyr at it with one command in §5.
 
-The J-Link path needs no such pointing. Zephyr finds J-Link on its own, so PSOC™ Control attendees have nothing to configure — but the **version** does matter. KIT_PSC3M6_EVAL needs **J-Link V9.68 or later**. Older installations cannot describe this device's debug architecture and fail at flash time with:
+The J-Link path needs no such pointing. Zephyr finds J-Link on its own, so PSOC™ Control attendees have nothing to configure — but the **version** does matter. KIT_PSC3M6_EVAL needs **J-Link V9.78 or later**, which is the first release carrying the `PSC3M6GES3AH` device entry this board flashes through. Older installations cannot describe this device's debug architecture and fail at flash time with:
 
 ```
 Unsupported value for 'Type' parameter
@@ -96,7 +96,7 @@ Unsupported value for 'Type' parameter
 (Get-Item "$((Get-ItemProperty HKCU:\Software\SEGGER\J-Link).InstallPath)\JLink.exe").VersionInfo.ProductVersion
 ```
 
-If that reports anything below 9.68, install the current version from SEGGER before the session — and if you have several versions installed, install the newest one **last**, so the registry points at it. This is the one tooling check a PSOC™ Control attendee cannot skip, and it is much cheaper to do now than in the room.
+If that reports anything below 9.78, install the current version from SEGGER before the session — and if you have several versions installed, install the newest one **last**, so the registry points at it. This is the one tooling check a PSOC™ Control attendee cannot skip, and it is much cheaper to do now than in the room.
 
 ---
 
@@ -121,7 +121,7 @@ west update --narrow
 | Command | What happens |
 | --- | --- |
 | `west init -m <url> devcon-ws` | Creates a `devcon-ws` folder and fetches **only the manifest** — a small file naming which repositories this training needs and exactly which commit of each. Seconds, not minutes. |
-| `west update --narrow` | Fetches those repositories. **This is the bulk of the download** — about 250 MB over the network, landing as 1.0 GB on disk. Roughly five minutes on a good connection. Leave it running. |
+| `west update --narrow` | Fetches those repositories. **This is the bulk of the download** — about 282 MB over the network, landing as 1.24 GB on disk. Roughly six minutes on a good connection. Leave it running. |
 
 **`--narrow` is not optional advice.** Without it, west fetches every branch and every tag of every repository instead of just the one commit the manifest pins. It is the difference between a download that finishes during this session and one that does not.
 
@@ -133,11 +133,11 @@ Once `west update` is running, **leave that window alone and go and listen.** No
 
 Two things are working here, and they are independent.
 
-**The project list is trimmed.** Upstream Zephyr's default manifest pulls in every vendor's hardware support — ST, NXP, Nordic, Espressif, all of it — because upstream has no way to ask for one vendor's worth. That is roughly 7.9 GB on disk, and you would use none of it this week. The manifest you just used names its projects explicitly instead: the training fork of Zephyr, Infineon's hardware abstraction layer, ARM's CMSIS headers, and LVGL for the graphics lab. Nothing else.
+**The project list is trimmed.** Upstream Zephyr's default manifest pulls in every vendor's hardware support — ST, NXP, Nordic, Espressif, all of it — because upstream has no way to ask for one vendor's worth. That is roughly 7.9 GB on disk, and you would use none of it this week. The manifest you just used names its projects explicitly instead: the training fork of Zephyr, Infineon's hardware abstraction layer, ARM's CMSIS headers, LVGL for the graphics lab, and the four projects the PSOC™ Edge advanced session needs for TF-M and MCUboot. Nothing else.
 
 **No history is fetched.** Every project in the manifest sets `clone-depth: 1`, so each repository arrives as the single pinned commit with no history behind it. You are building against that exact commit, so the history buys you nothing in this room. If you later want it for a given project, `git fetch --unshallow` inside that project recovers it.
 
-Together: **1.0 GB on disk instead of 7.9 GB**, and only about 250 MB of it crosses this room's WiFi.
+Together: **1.24 GB on disk instead of 7.9 GB**, and only about 282 MB of it crosses this room's WiFi.
 
 ---
 
@@ -185,10 +185,12 @@ Three short commands, all still from inside `devcon-ws`.
 **First, install Zephyr's Python dependencies:**
 
 ```
-pip install -r zephyr/scripts/requirements-base.txt imgtool
+pip install -r devcon-training-2026/requirements-devcon.txt
 ```
 
-Zephyr's build is driven by Python, and these are the packages it needs to generate devicetree and Kconfig output, build, and sign images. They could not be installed earlier — `requirements-base.txt` is inside the Zephyr repository and does not exist on disk until `west update` finishes.
+Zephyr's build is driven by Python, and these are the packages it needs to generate devicetree and Kconfig output, build, and sign images. They could not be installed earlier — the list chains Zephyr's own `requirements-base.txt`, which is inside the Zephyr repository and does not exist on disk until `west update` finishes.
+
+> Do not substitute `pip install -r zephyr/scripts/requirements.txt`. That file is the umbrella for Zephyr's CI tiers and pulls roughly 184 MB of packages — OpenCV, SciPy, NumPy, pyOCD — that nothing this week uses.
 
 **Second, apply the graphics patches:**
 

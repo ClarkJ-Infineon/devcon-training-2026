@@ -3,8 +3,15 @@
 # Bundles the lab applications (PSOC Control CAN lab, PSOC Edge E84 display
 # lab and dashboard lab) and pins a trimmed project list against a mainline-based Zephyr
 # branch, rather than importing upstream Zephyr's full west.yml. The list
-# below contains only the modules the labs require; upstream's manifest
-# would additionally fetch every other vendor HAL, babblesim and TF-M.
+# below contains only the modules the training requires; upstream's manifest
+# would additionally fetch every other vendor HAL and babblesim.
+#
+# The final four projects (mcuboot, trusted-firmware-m, mbedtls,
+# tf-psa-crypto) are not used by any lab. They are present so that the
+# PSOC Edge advanced session, which covers multi-core, TF-M and MCUboot,
+# can build without a second download on the day. Upstream's tee and
+# crypto groups also carry tf-psa-crypto-drivers, mldsa-native, tf-m-tests
+# and psa-arch-tests; none are needed and all are omitted.
 #
 # zephyr is pinned by commit SHA rather than branch name, so a given commit
 # of this manifest always resolves to one exact Zephyr tree.
@@ -60,5 +67,32 @@ manifest:
       path: modules/lib/gui/lvgl
       clone-depth: 1
 
+    - name: mcuboot
+      remote: upstream
+      repo-path: mcuboot
+      revision: c85af35b875d244cf91f8ec3caa04168fc7f1ec1
+      path: bootloader/mcuboot
+      clone-depth: 1
+
+    - name: trusted-firmware-m
+      remote: upstream
+      repo-path: trusted-firmware-m
+      revision: b01f190e46afcb02b7f240d2b3ab961d6bca6c24
+      path: modules/tee/tf-m/trusted-firmware-m
+      clone-depth: 1
+
+    - name: mbedtls
+      remote: upstream
+      repo-path: mbedtls
+      revision: c43f34b93797e81fd0257c30004dcd0ae332ae51
+      path: modules/crypto/mbedtls
+      clone-depth: 1
+
+    - name: tf-psa-crypto
+      remote: upstream
+      repo-path: tf-psa-crypto
+      revision: 765af96a20a2b408474dcd950372ba9af4d26b62
+      path: modules/crypto/tf-psa-crypto
+      clone-depth: 1
   self:
     path: devcon-training-2026
