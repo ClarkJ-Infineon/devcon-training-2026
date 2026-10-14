@@ -100,7 +100,7 @@ The rest of this guide writes the folder as `<tier>`.
 Your first build names everything; every build after it is a short form, because `-d build/lab` means west reuses the same build directory and already remembers your board and source tree. From inside `devcon-ws`:
 
 ```
-west build -b kit_psc3m6_evk -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- -DEXTRA_CONF_FILE=conf/role_command.conf
+west build -b kit_psc3m6_evk -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- '-DEXTRA_CONF_FILE=conf/role_command.conf'
 west flash -d build/lab
 ```
 
@@ -114,6 +114,8 @@ west flash -d build/lab
 **Nothing is pre-built.** Your first build is in §7, takes a minute or two, and every build after it is incremental.
 
 > **`kit_psc3m6_evk` is not a typo.** The kit is called **KIT_PSC3M6_EVAL**, but the board identifier currently in Zephyr is `kit_psc3m6_evk` — a holdover from the earlier C3M5 kit, which really was an EVK. Type it as `kit_psc3m6_evk` wherever a command or filename needs it; this guide uses the kit's real name in prose. The mismatch has been raised with the Zephyr platform team.
+
+> **The single quotes around `-D...` are required on Windows.** PowerShell reads any argument starting with `-` as one of its own parameters, and a parameter name cannot contain `.` or `:` — so it silently splits the argument at the first one. Unquoted, `-DEXTRA_CONF_FILE=conf/role_command.conf` reaches CMake as two arguments, `-DEXTRA_CONF_FILE=conf/role_command` and `.conf`, and the build fails with `Select a lab role` plus a `CMake Warning: Ignoring extra path from command line: ".conf"`. Quoting fixes it, and is harmless on macOS and Linux — so **single-quote every `-D...` argument** and you never have to think about it again.
 
 ---
 
@@ -221,7 +223,7 @@ CONFIG_PWM=y
 Build and flash now, before writing any code. It takes about two minutes and proves your devicetree and Kconfig edits are correct **in isolation** — which is far easier than debugging them later with half-finished application code in the way.
 
 ```
-west build -b kit_psc3m6_evk -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- -DEXTRA_CONF_FILE=conf/role_command.conf
+west build -b kit_psc3m6_evk -d build/lab -s devcon-training-2026/labs/can-lab-<tier> -- '-DEXTRA_CONF_FILE=conf/role_command.conf'
 west flash -d build/lab
 ```
 
@@ -321,7 +323,7 @@ At the end of Phase 1 every attendee has independently proven ADC → PWM → co
 **One** of the two boards rebuilds as the telemetry node. Same source tree, same build directory, same code you just wrote — one different build flag:
 
 ```
-west build -d build/lab -- -DEXTRA_CONF_FILE=conf/role_telemetry.conf
+west build -d build/lab -- '-DEXTRA_CONF_FILE=conf/role_telemetry.conf'
 west flash -d build/lab
 ```
 
@@ -424,11 +426,11 @@ Two boards, one per role, wired exactly as in §9. Use a **separate build direct
 
 ```
 # Board A - command node
-west build -b kit_psc3m6_evk -d build/prod-cmd -s devcon-training-2026/labs/can-lab-production -- -DEXTRA_CONF_FILE=conf/role_command.conf
+west build -b kit_psc3m6_evk -d build/prod-cmd -s devcon-training-2026/labs/can-lab-production -- '-DEXTRA_CONF_FILE=conf/role_command.conf'
 west flash -d build/prod-cmd
 
 # Board B - telemetry node
-west build -b kit_psc3m6_evk -d build/prod-tlm -s devcon-training-2026/labs/can-lab-production -- -DEXTRA_CONF_FILE=conf/role_telemetry.conf
+west build -b kit_psc3m6_evk -d build/prod-tlm -s devcon-training-2026/labs/can-lab-production -- '-DEXTRA_CONF_FILE=conf/role_telemetry.conf'
 west flash -d build/prod-tlm
 ```
 
@@ -445,7 +447,7 @@ If `Cy_TrigMux_Connect()` ever fails, that line is replaced by an error naming t
 Add `-DLED_SOFTPWM=y` to build the same application with the bit-banged LED path instead:
 
 ```
-west build -b kit_psc3m6_evk -d build/prod-soft -s devcon-training-2026/labs/can-lab-production -- -DEXTRA_CONF_FILE=conf/role_command.conf -DLED_SOFTPWM=y
+west build -b kit_psc3m6_evk -d build/prod-soft -s devcon-training-2026/labs/can-lab-production -- '-DEXTRA_CONF_FILE=conf/role_command.conf' '-DLED_SOFTPWM=y'
 west flash -d build/prod-soft
 ```
 

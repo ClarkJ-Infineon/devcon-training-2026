@@ -5,7 +5,7 @@
 # Build from the workspace root:
 #
 #   west build -b kit_psc3m6_evk -d build/lab -s <path-to-this-dir> -- \
-#       -DEXTRA_CONF_FILE=conf/role_command.conf
+#       '-DEXTRA_CONF_FILE=conf/role_command.conf'
 #
 # See ../../README.md and the lab guide for full instructions.
 
@@ -17,7 +17,7 @@ cmake_minimum_required(VERSION 3.20.0)
 #                    (P8.4, alias led0) through the PSOC Control PERI
 #                    trigger multiplexer. Hardware signal routing, no CPU
 #                    in the path.
-#   -DLED_SOFTPWM=y  fallback: bit-bang led0 from a dedicated thread.
+#   '-DLED_SOFTPWM=y'  fallback: bit-bang led0 from a dedicated thread.
 #
 # Both halves of the trigger-mux path (the source file selected by the
 # Kconfig symbol and the devicetree overlay carrying the P8.4 pin-mux) are

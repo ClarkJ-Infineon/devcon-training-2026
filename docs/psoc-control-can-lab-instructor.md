@@ -37,10 +37,10 @@ If that prints something below V9.78, re-running the current J-Link installer fi
 Before the room starts editing, flash **both** demo boards from `can-lab-production` — one per role — and show the LED sync working at the front of the room.
 
 ```
-west build -b kit_psc3m6_evk -d build/prod-cmd -s devcon-training-2026/labs/can-lab-production -- -DEXTRA_CONF_FILE=conf/role_command.conf
+west build -b kit_psc3m6_evk -d build/prod-cmd -s devcon-training-2026/labs/can-lab-production -- '-DEXTRA_CONF_FILE=conf/role_command.conf'
 west flash -d build/prod-cmd
 
-west build -b kit_psc3m6_evk -d build/prod-tlm -s devcon-training-2026/labs/can-lab-production -- -DEXTRA_CONF_FILE=conf/role_telemetry.conf
+west build -b kit_psc3m6_evk -d build/prod-tlm -s devcon-training-2026/labs/can-lab-production -- '-DEXTRA_CONF_FILE=conf/role_telemetry.conf'
 west flash -d build/prod-tlm
 ```
 

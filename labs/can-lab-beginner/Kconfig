@@ -10,7 +10,7 @@ mainmenu "PSOC Control CAN Command & Telemetry Lab"
 
 choice LAB_ROLE
 	prompt "CAN lab node role"
-	default LAB_ROLE_COMMAND
+	optional
 	help
 	  Board A ("Command node") reads the onboard potentiometer and
 	  transmits the resulting setpoint over CAN. Board B ("Telemetry

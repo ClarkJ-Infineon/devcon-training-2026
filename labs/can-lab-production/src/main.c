@@ -15,7 +15,7 @@ void run_command_node(void);
 #elif defined(CONFIG_LAB_ROLE_TELEMETRY)
 void run_telemetry_node(void);
 #else
-#error "Select a lab role: build with -DEXTRA_CONF_FILE=conf/role_command.conf or conf/role_telemetry.conf"
+#error "Select a lab role: add -- '-DEXTRA_CONF_FILE=conf/role_command.conf' (or role_telemetry.conf) to your west build command. The single quotes matter on Windows."
 #endif
 
 int main(void)

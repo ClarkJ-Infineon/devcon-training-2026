@@ -6,7 +6,7 @@
 # Software General Session (Zephyr):
 #
 #   west build -b kit_psc3m6_evk -d build/lab -s <path-to-this-dir> -- \
-#       -DEXTRA_CONF_FILE=conf/role_command.conf
+#       '-DEXTRA_CONF_FILE=conf/role_command.conf'
 #
 # See ../../README.md and the lab guide for full instructions.
 

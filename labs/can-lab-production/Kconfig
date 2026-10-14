@@ -10,7 +10,7 @@ mainmenu "PSOC Control CAN Command & Telemetry Lab"
 
 choice LAB_ROLE
 	prompt "CAN lab node role"
-	default LAB_ROLE_COMMAND
+	optional
 	help
 	  Board A ("Command node") reads the onboard potentiometer and
 	  transmits the resulting setpoint over CAN. Board B ("Telemetry
@@ -42,7 +42,7 @@ config LAB_LED_TRIGMUX
 	  pin-mux half comes from boards/led_trigmux.overlay, which the
 	  application's CMakeLists.txt applies alongside this symbol.
 
-	  Turn this off with -DLED_SOFTPWM=y on the west build command line
+	  Turn this off with '-DLED_SOFTPWM=y' on the west build command line
 	  rather than editing a .conf file by hand; that selects the bit-banged
 	  soft-PWM fallback in src/lab_led_softpwm.c instead.
 
